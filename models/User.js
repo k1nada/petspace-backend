@@ -24,7 +24,7 @@ const User = new Schema({
   bio: { type: String, maxLength: 150, default: null },
   gender: { type: String, default: null },
   birthDate: { type: Date, default: null },
-  country: { type: String, default: null }, 
+  country: { type: String, default: null },
   city: { type: String, default: null },
   breed: { type: String, default: null },
   interests: {
@@ -37,6 +37,7 @@ const User = new Schema({
   },
 
   photos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
+  friends: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
 });
 
 module.exports = model("User", User);
