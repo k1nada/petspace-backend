@@ -23,6 +23,8 @@ const ERROR_CODES = {
 
   INTERNAL_SERVER_ERROR: 1600,
   MISSING_REQUIRED_FIELDS: 1601,
+
+  ALREADY_FRIENDS: 1700,
 };
 
 const errorResponse = (errorName) => ({

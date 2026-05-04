@@ -1,0 +1,57 @@
+const User = require("../models/User");
+const { errorResponse } = require("../utils/errors");
+
+const getFriends = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }).populate(
+      "friends",
+    );
+    res.json(user.friends);
+  } catch {
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
+const addFriend = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username });
+    const friend = await User.findOne({ username: req.params.friendUsername });
+    console.log(user, friend);
+
+    if (!user || !friend) {
+      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    }
+
+    if (user.friends.includes(friend._id)) {
+      return res.status(400).json(errorResponse("ALREADY_FRIENDS"));
+    }
+
+    user.friends.push(friend._id);
+    await user.save();
+
+    res.json({ message: "Friend added" });
+  } catch {
+    console.log(e);
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
+const removeFriend = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username });
+    const friend = await User.findOne({ username: req.params.friendUsername });
+
+    if (!user || !friend) {
+      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    }
+
+    user.friends = user.friends.filter((id) => !id.equals(friend._id));
+    await user.save();
+
+    res.json({ message: "Friend removed" });
+  } catch {
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
+module.exports = { getFriends, addFriend, removeFriend };
