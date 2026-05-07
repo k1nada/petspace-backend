@@ -14,8 +14,9 @@ const Comment = new Schema(
       ref: "Post",
     },
     photo: { type: mongoose.Schema.Types.ObjectId, ref: "Photo" },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
-  { toJSON: { virtuals: true }, timestamps: true },
+  { toJSON: { virtuals: true }, toObject: { virtuals: true }, timestamps: true },
 );
 
 module.exports = model("Comment", Comment);

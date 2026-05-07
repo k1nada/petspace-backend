@@ -1,7 +1,7 @@
 const Router = require("express");
 const router = new Router();
 const upload = require("../middleware/multer");
-const authMiddleware = require("../middleware/middleware");
+const authMiddleware = require("../middleware/authMiddleware");
 const {
   uploadAvatar,
   deleteAvatar,

@@ -17,8 +17,13 @@ const Post = new Schema(
       ref: "User",
       required: true,
     },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
-  { toJSON: { virtuals: true }, timestamps: true },
+  {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+    timestamps: true,
+  },
 );
 
 module.exports = model("Post", Post);
