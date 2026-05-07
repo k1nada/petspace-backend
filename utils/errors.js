@@ -25,6 +25,8 @@ const ERROR_CODES = {
   MISSING_REQUIRED_FIELDS: 1601,
 
   ALREADY_FRIENDS: 1700,
+
+  ALREADY_LIKED: 1800,
 };
 
 const errorResponse = (errorName) => ({

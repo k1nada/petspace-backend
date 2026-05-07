@@ -12,6 +12,7 @@ const postRouter = require("./routers/postRouter");
 const postwallRouter = require("./routers/postwallRouter");
 const commentRouter = require("./routers/commentRouter");
 const friendsRouter = require("./routers/friendsRouter");
+const likesRouter = require("./routers/likesRouter");
 
 app.use(cors());
 app.use(express.json());
@@ -23,6 +24,7 @@ app.use("/posts", postRouter);
 app.use("/postwall", postwallRouter);
 app.use("/comments", commentRouter);
 app.use("/friends", friendsRouter);
+app.use("/likes", likesRouter);
 
 const start = async () => {
   try {

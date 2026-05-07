@@ -7,28 +7,22 @@ const { secret } = require("../config/config");
 const { errorResponse } = require("../utils/errors");
 
 const generateAccessToken = (id) => {
-  const payload = {
-    id,
-  };
-  return jwt.sign(payload, secret, { expiresIn: "24h" });
+  return jwt.sign({ id }, secret, { expiresIn: "24h" });
 };
 
 class authController {
   async signup(req, res) {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+      if (!errors.isEmpty())
         return res.status(400).json({ message: "Errors", errors });
-      }
+
       const { name, username, password, email } = req.body;
-      const candidateEmail = await User.findOne({ email });
-      if (candidateEmail) {
+      if (await User.findOne({ email }))
         return res.status(400).json(errorResponse("EMAIL_ALREADY_EXISTS"));
-      }
-      const candidateUsername = await User.findOne({ username });
-      if (candidateUsername) {
+      if (await User.findOne({ username }))
         return res.status(400).json(errorResponse("USERNAME_ALREADY_EXISTS"));
-      }
+
       const hashPassword = bcrypt.hashSync(password, 5);
       const user = new User({ name, username, password: hashPassword, email });
       await user.save();
@@ -43,7 +37,7 @@ class authController {
         },
       });
     } catch (e) {
-      res.status(400).json({ message: "Registration error" });
+      res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
     }
   }
 
@@ -51,17 +45,13 @@ class authController {
     try {
       const { email, password } = req.body;
       const user = await User.findOne({ email });
-
       const validPassword = user
         ? bcrypt.compareSync(password, user.password)
         : false;
-
-      if (!user || !validPassword) {
+      if (!user || !validPassword)
         return res.status(401).json(errorResponse("INVALID_CREDENTIALS"));
-      }
 
       const token = generateAccessToken(user._id);
-
       return res.json({
         token,
         user: {
@@ -91,21 +81,17 @@ class authController {
         .select({ password: 0, email: 0 })
         .populate({
           path: "photos",
-          populate: {
-            path: "user",
-            select: "name avatar",
-          },
+          populate: { path: "user", select: "name avatar" },
         })
         .populate({
           path: "avatarPhotos",
-          populate: {
-            path: "user",
-            select: "name avatar",
-          },
+          populate: { path: "user", select: "name avatar" },
+        })
+        .populate({
+          path: "friends",
+          select: "name username avatar city breed",
         });
-      if (!user) {
-        return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-      }
+      if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
       res.json(user);
     } catch (e) {
       res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
@@ -117,14 +103,7 @@ class authController {
       const { bio, gender, birthDate, country, city, breed } = req.body;
       const user = await User.findByIdAndUpdate(
         req.user.id,
-        {
-          bio,
-          gender,
-          birthDate,
-          country,
-          city,
-          breed,
-        },
+        { bio, gender, birthDate, country, city, breed },
         { new: true },
       );
       res.json(user);
