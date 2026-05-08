@@ -20,7 +20,7 @@ const User = new Schema({
   },
 
   avatar: { type: String, default: null },
-  avatarPhotos: [{ type: Schema.Types.ObjectId, ref: "Photo", default: null }],
+  avatarPhotos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
   bio: { type: String, maxLength: 150, default: null },
   gender: { type: String, default: null },
   birthDate: { type: Date, default: null },
@@ -37,7 +37,7 @@ const User = new Schema({
   },
 
   photos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
-  friends: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
+  friends: [{ type: Schema.Types.ObjectId, ref: "User" }],
 });
 
 module.exports = model("User", User);

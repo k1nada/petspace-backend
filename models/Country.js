@@ -1,8 +1,7 @@
-const mongoose = require("mongoose");
 const { Schema, model } = require("mongoose");
 
 const CountrySchema = new Schema({
-  country: { type: String },
+  country: { type: String, required: true, unique: true },
   cities: [{ type: String }],
 });
 
