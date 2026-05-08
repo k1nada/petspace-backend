@@ -3,20 +3,22 @@ const { secret } = require("../config/config");
 
 const authMiddleware = (req, res, next) => {
   try {
-    const token = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "UNAUTHORIZED" });
 
-    if (!token) {
-      return res.status(401).json("error");
-    }
-
-    const decoded = jwt.verify(token, secret);
-    console.log("decoded:", decoded);
-    req.user = decoded;
-
+    req.user = jwt.verify(token, secret);
     next();
-  } catch (e) {
-    console.log(e);
+  } catch {
+    res.status(401).json({ error: "INVALID_TOKEN" });
   }
 };
 
-module.exports = authMiddleware;
+const optionalAuthMiddleware = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (token) req.user = jwt.verify(token, secret);
+  } catch {}
+  next();
+};
+
+module.exports = { authMiddleware, optionalAuthMiddleware };

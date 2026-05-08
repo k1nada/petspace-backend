@@ -1,23 +1,11 @@
-const mongoose = require("mongoose");
 const { Schema, model } = require("mongoose");
 
 const Post = new Schema(
   {
-    content: {
-      type: String,
-      required: true,
-    },
-    postwall: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Postwall",
-      required: true,
-    },
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    content: { type: String, required: true },
+    postwall: { type: Schema.Types.ObjectId, ref: "Postwall", required: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
   {
     toJSON: { virtuals: true },
@@ -25,5 +13,11 @@ const Post = new Schema(
     timestamps: true,
   },
 );
+
+Post.virtual("comments", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "post",
+});
 
 module.exports = model("Post", Post);
