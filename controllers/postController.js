@@ -1,3 +1,4 @@
+const User = require("../models/User");
 const Post = require("../models/Post");
 const { errorResponse } = require("../utils/errors");
 
@@ -13,8 +14,17 @@ const createPost = async (req, res) => {
     if (!content || !postwallId)
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
 
-    const post = await Post.create({ content, postwall: postwallId, user: req.user.id });
+    const post = await Post.create({
+      content,
+      postwall: postwallId,
+      user: req.user.id,
+    });
     await post.populate("user", "name avatar");
+
+    await User.findByIdAndUpdate(req.user.id, {
+      "achievements.firstPost": true,
+    });
+
     res.status(201).json(post);
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
@@ -25,17 +35,22 @@ const getPosts = async (req, res) => {
   try {
     const posts = await Post.find({ postwall: req.params.postwallId })
       .populate("user")
-      .populate({ path: "comments", populate: { path: "user", select: "name avatar" } })
+      .populate({
+        path: "comments",
+        populate: { path: "user", select: "name avatar" },
+      })
       .sort({ createdAt: -1 });
 
     const userId = req.user.id;
-    res.json(posts.map((post) => {
-      const obj = post.toObject();
-      return {
-        ...withLiked(obj, userId),
-        comments: obj.comments.map((c) => withLiked(c, userId)),
-      };
-    }));
+    res.json(
+      posts.map((post) => {
+        const obj = post.toObject();
+        return {
+          ...withLiked(obj, userId),
+          comments: obj.comments.map((c) => withLiked(c, userId)),
+        };
+      }),
+    );
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }

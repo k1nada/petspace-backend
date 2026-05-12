@@ -38,6 +38,11 @@ const User = new Schema({
 
   photos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
   friends: [{ type: Schema.Types.ObjectId, ref: "User" }],
+
+  achievements: {
+    firstFriend: { type: Boolean, default: false },
+    firstPost: { type: Boolean, default: false },
+  },
 });
 
 module.exports = model("User", User);
