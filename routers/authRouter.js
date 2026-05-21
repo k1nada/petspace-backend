@@ -7,6 +7,8 @@ const {
   getUser,
   updateUser,
   registrationsSteps,
+  getMe,
+  searchUsers,
 } = require("../controllers/authController");
 const { check } = require("express-validator");
 const { authMiddleware } = require("../middleware/authMiddleware");
@@ -27,7 +29,9 @@ router.post(
 router.post("/signin", signin);
 router.get("/users", getUsers);
 router.get("/user/:username", getUser);
+router.get("/me", authMiddleware, getMe);
 router.put("/user/:username", authMiddleware, updateUser);
 router.patch("/registration-steps", authMiddleware, registrationsSteps);
+router.get("/users/search", authMiddleware, searchUsers);
 
 module.exports = router;

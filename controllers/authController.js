@@ -92,6 +92,19 @@ const getUser = async (req, res) => {
   }
 };
 
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select({
+      password: 0,
+      email: 0,
+    });
+    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    res.json(user);
+  } catch {
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
 const registrationsSteps = async (req, res) => {
   try {
     const { bio, gender, birthDate, country, city, breed } = req.body;
@@ -108,14 +121,34 @@ const registrationsSteps = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { bio, gender, birthDate, country, city, breed, interests } =
+    const { name, bio, gender, birthDate, country, city, breed, interests } =
       req.body;
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { bio, gender, birthDate, country, city, breed, interests },
+      { name, bio, gender, birthDate, country, city, breed, interests },
       { new: true },
     );
     res.json(user);
+  } catch {
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
+const searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query?.trim()) return res.json([]);
+
+    const users = await User.find({
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { username: { $regex: query, $options: "i" } },
+      ],
+    })
+      .select("name username avatar")
+      .limit(10);
+
+    res.json(users);
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
@@ -126,6 +159,8 @@ module.exports = {
   signin,
   getUsers,
   getUser,
+  getMe,
   registrationsSteps,
   updateUser,
+  searchUsers,
 };
