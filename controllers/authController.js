@@ -33,7 +33,7 @@ const signup = async (req, res) => {
     res.json({
       token: generateAccessToken(user._id),
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         onboardingCompleted: false,
       },
@@ -50,14 +50,30 @@ const signin = async (req, res) => {
     if (!user || !bcrypt.compareSync(password, user.password))
       return res.status(401).json(errorResponse("INVALID_CREDENTIALS"));
 
+    user.isOnline = true;
+    user.lastSeen = new Date();
+    await user.save();
+
     res.json({
       token: generateAccessToken(user._id),
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         onboardingCompleted: user.onboardingCompleted,
       },
     });
+  } catch {
+    res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  }
+};
+
+const signout = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, {
+      isOnline: false,
+      lastSeen: new Date(),
+    });
+    res.json({ success: true });
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
@@ -157,6 +173,7 @@ const searchUsers = async (req, res) => {
 module.exports = {
   signup,
   signin,
+  signout,
   getUsers,
   getUser,
   getMe,

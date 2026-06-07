@@ -9,6 +9,7 @@ const {
   registrationsSteps,
   getMe,
   searchUsers,
+  signout,
 } = require("../controllers/authController");
 const { check } = require("express-validator");
 const { authMiddleware } = require("../middleware/authMiddleware");
@@ -33,5 +34,6 @@ router.get("/me", authMiddleware, getMe);
 router.put("/user/:username", authMiddleware, updateUser);
 router.patch("/registration-steps", authMiddleware, registrationsSteps);
 router.get("/users/search", authMiddleware, searchUsers);
+router.post("/signout", authMiddleware, signout);
 
 module.exports = router;
