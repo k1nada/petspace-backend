@@ -13,7 +13,7 @@ const createComment = async (req, res) => {
       ...(postId ? { post: postId } : { photo: photoId }),
     });
 
-    await comment.populate("user", "name avatar");
+    await comment.populate("user", "name avatar username");
     res.status(201).json(comment);
   } catch (e) {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
