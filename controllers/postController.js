@@ -19,7 +19,7 @@ const createPost = async (req, res) => {
       postwall: postwallId,
       user: req.user.id,
     });
-    await post.populate("user", "name avatar");
+    await comment.populate("user", "name avatar username");
 
     await User.findByIdAndUpdate(req.user.id, {
       "achievements.firstPost": true,
@@ -34,10 +34,10 @@ const createPost = async (req, res) => {
 const getPosts = async (req, res) => {
   try {
     const posts = await Post.find({ postwall: req.params.postwallId })
-      .populate("user")
+      .populate("user", "name avatar username")
       .populate({
         path: "comments",
-        populate: { path: "user", select: "name avatar" },
+        populate: { path: "user", select: "name avatar username" },
       })
       .sort({ createdAt: -1 });
 
