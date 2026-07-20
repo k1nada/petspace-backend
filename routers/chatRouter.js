@@ -1,17 +1,7 @@
 const Router = require("express");
 const router = new Router();
-const Message = require("../models/Message");
+const { getMessages } = require("../controllers/chatController");
 
-router.get("/:roomId", async (req, res) => {
-  try {
-    const messages = await Message.find({ roomId: req.params.roomId })
-      .populate("sender", "username name avatar")
-      .sort({ createdAt: 1 });
-
-    res.json(messages);
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-});
+router.get("/:roomId", getMessages);
 
 module.exports = router;

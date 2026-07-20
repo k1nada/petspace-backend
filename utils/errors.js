@@ -29,6 +29,9 @@ const ERROR_CODES = {
   REQUEST_NOT_FOUND: 1702,
 
   ALREADY_LIKED: 1800,
+
+  ALREADY_FOLLOWING: 1900,
+  NOT_FOLLOWING: 1901,
 };
 
 const errorResponse = (errorName) => ({
