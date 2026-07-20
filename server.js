@@ -11,9 +11,11 @@ const postRouter = require("./routers/postRouter");
 const postwallRouter = require("./routers/postwallRouter");
 const commentRouter = require("./routers/commentRouter");
 const friendsRouter = require("./routers/friendsRouter");
+const followsRouter = require("./routers/followsRouter");
 const likesRouter = require("./routers/likesRouter");
 const chatRouter = require("./routers/chatRouter");
 const setupSockets = require("./sockets/socketHandler");
+const { errorResponse } = require("./utils/errors");
 
 const app = express();
 const http = require("http").createServer(app);
@@ -31,10 +33,16 @@ app.use("/posts", postRouter);
 app.use("/postwall", postwallRouter);
 app.use("/comments", commentRouter);
 app.use("/friends", friendsRouter);
+app.use(followsRouter);
 app.use("/likes", likesRouter);
 app.use("/chat", chatRouter);
 
 setupSockets(io);
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+});
 
 const start = async () => {
   try {

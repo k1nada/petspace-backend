@@ -1,5 +1,6 @@
 const Router = require("express");
 const router = new Router();
+const { authMiddleware } = require("../middleware/authMiddleware");
 const {
   getFriends,
   addFriend,
@@ -10,10 +11,14 @@ const {
 } = require("../controllers/friendsController");
 
 router.get("/:username", getFriends);
-router.post("/:username/add/:friendUsername", addFriend);
-router.delete("/:username/delete/:friendUsername", deleteFriend);
-router.post("/request/:requestId/accept", acceptFriendRequest);
-router.post("/request/:requestId/reject", rejectFriendRequest);
-router.get("/requests/:username/pending", getPendingRequests);
+router.post("/:username/add/:friendUsername", authMiddleware, addFriend);
+router.delete(
+  "/:username/delete/:friendUsername",
+  authMiddleware,
+  deleteFriend,
+);
+router.post("/request/:requestId/accept", authMiddleware, acceptFriendRequest);
+router.post("/request/:requestId/reject", authMiddleware, rejectFriendRequest);
+router.get("/requests/:username/pending", authMiddleware, getPendingRequests);
 
 module.exports = router;

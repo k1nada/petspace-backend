@@ -19,7 +19,7 @@ const createPost = async (req, res) => {
       postwall: postwallId,
       user: req.user.id,
     });
-    await comment.populate("user", "name avatar username");
+    await post.populate("user", "name avatar username");
 
     await User.findByIdAndUpdate(req.user.id, {
       "achievements.firstPost": true,

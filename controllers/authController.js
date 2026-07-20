@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const Postwall = require("../models/Postwall");
+const FriendRequest = require("../models/FriendRequest");
 const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
@@ -24,7 +25,7 @@ const signup = async (req, res) => {
     const user = new User({
       name,
       username,
-      password: bcrypt.hashSync(password, 5),
+      password: bcrypt.hashSync(password, 10),
       email,
     });
     await user.save();
@@ -81,7 +82,7 @@ const signout = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    res.json(await User.find());
+    res.json(await User.find().select({ password: 0, email: 0 }));
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
@@ -110,12 +111,21 @@ const getUser = async (req, res) => {
 
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select({
-      password: 0,
-      email: 0,
-    });
+    const user = await User.findById(req.user.id)
+      .select({ password: 0, email: 0 })
+      .populate({
+        path: "friends",
+        select: "name username avatar city breed",
+      });
+
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-    res.json(user);
+
+    const sentRequests = await FriendRequest.find({
+      from: user._id,
+      status: "pending",
+    }).distinct("to");
+
+    res.json({ ...user.toJSON(), sentRequests });
   } catch {
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
@@ -123,10 +133,10 @@ const getMe = async (req, res) => {
 
 const registrationsSteps = async (req, res) => {
   try {
-    const { bio, gender, birthDate, country, city, breed } = req.body;
+    const { bio, sex, birthDate, country, city, breed } = req.body;
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { bio, gender, birthDate, country, city, breed },
+      { bio, sex, birthDate, country, city, breed },
       { new: true },
     );
     res.json(user);
@@ -137,11 +147,11 @@ const registrationsSteps = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { name, bio, gender, birthDate, country, city, breed, interests } =
+    const { name, bio, sex, birthDate, country, city, breed, interests } =
       req.body;
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, bio, gender, birthDate, country, city, breed, interests },
+      { name, bio, sex, birthDate, country, city, breed, interests },
       { new: true },
     );
     res.json(user);
