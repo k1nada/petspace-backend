@@ -32,6 +32,9 @@ const ERROR_CODES = {
 
   ALREADY_FOLLOWING: 1900,
   NOT_FOLLOWING: 1901,
+
+  FAMILY_MEMBER_NOT_FOUND: 2000,
+  INVALID_RELATION: 2001,
 };
 
 const errorResponse = (errorName) => ({
