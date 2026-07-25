@@ -26,7 +26,8 @@ const createPost = async (req, res) => {
     });
 
     res.status(201).json(post);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -51,7 +52,8 @@ const getPosts = async (req, res) => {
         };
       }),
     );
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -65,7 +67,8 @@ const deletePost = async (req, res) => {
 
     await post.deleteOne();
     res.json({ message: "Post deleted" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };

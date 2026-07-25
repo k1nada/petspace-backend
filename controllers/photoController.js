@@ -27,7 +27,8 @@ const uploadAvatar = async (req, res) => {
     });
 
     res.json({ data: { url: optimizedUrl, public_id: result.public_id, photoId: photo._id } });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("UPLOAD_FAILED"));
   }
 };
@@ -40,7 +41,8 @@ const uploadPhoto = async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, { $push: { photos: photo._id } });
 
     res.json({ data: { url: result.secure_url, public_id: result.public_id, _id: photo._id, createdAt: photo.createdAt } });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("UPLOAD_FAILED"));
   }
 };
@@ -56,7 +58,8 @@ const deletePhoto = async (req, res) => {
     ]);
 
     res.json({ data: { success: true } });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("DELETE_FAILED"));
   }
 };
@@ -81,7 +84,8 @@ const deleteAvatar = async (req, res) => {
     }
 
     res.json({ data: { success: true } });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("DELETE_FAILED"));
   }
 };

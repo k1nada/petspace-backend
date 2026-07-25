@@ -39,7 +39,8 @@ const signup = async (req, res) => {
         onboardingCompleted: false,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -63,7 +64,8 @@ const signin = async (req, res) => {
         onboardingCompleted: user.onboardingCompleted,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -75,7 +77,8 @@ const signout = async (req, res) => {
       lastSeen: new Date(),
     });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -83,7 +86,8 @@ const signout = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     res.json(await User.find().select({ password: 0, email: 0 }));
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -104,7 +108,8 @@ const getUser = async (req, res) => {
 
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
     res.json(user);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -126,7 +131,8 @@ const getMe = async (req, res) => {
     }).distinct("to");
 
     res.json({ ...user.toJSON(), sentRequests });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -140,7 +146,8 @@ const registrationsSteps = async (req, res) => {
       { new: true },
     );
     res.json(user);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -155,7 +162,8 @@ const updateUser = async (req, res) => {
       { new: true },
     );
     res.json(user);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -175,7 +183,8 @@ const searchUsers = async (req, res) => {
       .limit(10);
 
     res.json(users);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };

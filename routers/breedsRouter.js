@@ -7,7 +7,8 @@ router.get("/", async (req, res) => {
   try {
     const breeds = await Breed.find({}, "name");
     res.json(breeds.map((b) => b.name));
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 });
