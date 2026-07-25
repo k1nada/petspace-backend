@@ -1,14 +1,8 @@
 const User = require("../models/User");
 const { errorResponse } = require("../utils/errors");
+const { findUsersByUsername } = require("../utils/findUsers");
 
 const PUBLIC_FIELDS = "username name avatar isOnline lastSeen";
-
-const getUsers = async (usernames) => {
-  const users = await Promise.all(
-    usernames.map((u) => User.findOne({ username: u })),
-  );
-  return users;
-};
 
 const getFollowers = async (req, res) => {
   try {
@@ -18,7 +12,8 @@ const getFollowers = async (req, res) => {
 
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
     res.json(user.followers);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -31,7 +26,8 @@ const getFollowing = async (req, res) => {
 
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
     res.json(user.following);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -44,7 +40,7 @@ const followUser = async (req, res) => {
     if (username === targetUsername)
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    const [user, target] = await getUsers([username, targetUsername]);
+    const [user, target] = await findUsersByUsername([username, targetUsername]);
 
     if (!user || !target)
       return res.status(404).json(errorResponse("USER_NOT_FOUND"));
@@ -74,7 +70,7 @@ const unfollowUser = async (req, res) => {
     const username = req.params.username.toLowerCase();
     const targetUsername = req.params.targetUsername.toLowerCase();
 
-    const [user, target] = await getUsers([username, targetUsername]);
+    const [user, target] = await findUsersByUsername([username, targetUsername]);
 
     if (!user || !target)
       return res.status(404).json(errorResponse("USER_NOT_FOUND"));
@@ -101,7 +97,7 @@ const removeFollower = async (req, res) => {
     const username = req.params.username.toLowerCase();
     const followerUsername = req.params.followerUsername.toLowerCase();
 
-    const [user, follower] = await getUsers([username, followerUsername]);
+    const [user, follower] = await findUsersByUsername([username, followerUsername]);
 
     if (!user || !follower)
       return res.status(404).json(errorResponse("USER_NOT_FOUND"));

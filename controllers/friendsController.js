@@ -1,13 +1,7 @@
 const User = require("../models/User");
 const FriendRequest = require("../models/FriendRequest");
 const { errorResponse } = require("../utils/errors");
-
-const getUsers = async (usernames) => {
-  const users = await Promise.all(
-    usernames.map((u) => User.findOne({ username: u })),
-  );
-  return users;
-};
+const { findUsersByUsername } = require("../utils/findUsers");
 
 const getFriends = async (req, res) => {
   try {
@@ -17,7 +11,8 @@ const getFriends = async (req, res) => {
     );
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
     res.json(user.friends);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -30,7 +25,7 @@ const addFriend = async (req, res) => {
     if (username === friendUsername)
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    const [user, friend] = await getUsers([username, friendUsername]);
+    const [user, friend] = await findUsersByUsername([username, friendUsername]);
 
     if (!user || !friend)
       return res.status(404).json(errorResponse("USER_NOT_FOUND"));
@@ -112,7 +107,7 @@ const deleteFriend = async (req, res) => {
     const username = req.params.username.toLowerCase();
     const friendUsername = req.params.friendUsername.toLowerCase();
 
-    const [user, friend] = await getUsers([username, friendUsername]);
+    const [user, friend] = await findUsersByUsername([username, friendUsername]);
 
     if (!user || !friend)
       return res.status(404).json(errorResponse("USER_NOT_FOUND"));

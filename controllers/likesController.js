@@ -22,7 +22,8 @@ const likeHandler = (Model) => async (req, res) => {
     const result = await toggleLike(Model, req.params.id, req.user.id);
     if (!result) return res.status(404).json(errorResponse("NOT_FOUND"));
     res.json(result);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -32,7 +33,8 @@ const likeStatusHandler = (Model) => async (req, res) => {
     const result = await getLikeStatus(Model, req.params.id, req.user.id);
     if (!result) return res.status(404).json(errorResponse("NOT_FOUND"));
     res.json(result);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };

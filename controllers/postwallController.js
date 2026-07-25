@@ -9,7 +9,8 @@ const getPostwall = async (req, res) => {
 
     const postwall = await Postwall.findOne({ user: user._id });
     res.json(postwall);
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };

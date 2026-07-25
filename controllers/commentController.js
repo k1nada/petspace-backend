@@ -15,7 +15,8 @@ const createComment = async (req, res) => {
 
     await comment.populate("user", "name avatar username");
     res.status(201).json(comment);
-  } catch (e) {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -42,7 +43,8 @@ const getComments = async (req, res) => {
         };
       }),
     );
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
@@ -57,7 +59,8 @@ const deleteComment = async (req, res) => {
 
     await comment.deleteOne();
     res.json({ message: "Comment deleted" });
-  } catch (e) {
+  } catch (err) {
+    console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
   }
 };
