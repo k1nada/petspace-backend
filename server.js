@@ -15,7 +15,9 @@ const familyRouter = require("./routers/familyRouter");
 const followsRouter = require("./routers/followsRouter");
 const likesRouter = require("./routers/likesRouter");
 const chatRouter = require("./routers/chatRouter");
+const notificationRouter = require("./routers/notificationRouter");
 const setupSockets = require("./sockets/socketHandler");
+const { setSocketIO } = require("./utils/notify");
 const { errorResponse } = require("./utils/errors");
 
 const app = express();
@@ -23,6 +25,8 @@ const http = require("http").createServer(app);
 const io = require("socket.io")(http, {
   cors: { origin: "*" },
 });
+
+setSocketIO(io);
 
 app.use(cors());
 app.use(express.json());
@@ -38,6 +42,7 @@ app.use("/family", familyRouter);
 app.use(followsRouter);
 app.use("/likes", likesRouter);
 app.use("/chat", chatRouter);
+app.use(notificationRouter);
 
 setupSockets(io);
 
