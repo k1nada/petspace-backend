@@ -4,6 +4,7 @@ const { errorResponse } = require("../utils/errors");
 const { findUsersByUsername } = require("../utils/findUsers");
 const { notify } = require("../utils/notify");
 const { containsId, removeId, follow, unfollow } = require("../utils/friends");
+const { grantFirstFriendAchievements } = require("../utils/achievements");
 
 const getFriends = async (req, res) => {
   try {
@@ -105,6 +106,8 @@ const addFriend = async (req, res) => {
       await friend.save();
       await reverseRequest.save();
 
+      await grantFirstFriendAchievements(user._id, friend._id);
+
       return res.json({ message: "Friend request accepted", friends: true });
     }
 
@@ -115,9 +118,6 @@ const addFriend = async (req, res) => {
     });
 
     if (existingRequest) {
-      follow(user, friend);
-      await user.save();
-      await friend.save();
       return res.json({ message: "Friend request already sent" });
     }
 
@@ -127,11 +127,7 @@ const addFriend = async (req, res) => {
     });
 
     await friendRequest.save();
-    await notify({ recipient: friend._id, actor: user._id, type: "friendRequest" });
-
-    follow(user, friend);
-    await user.save();
-    await friend.save();
+    await notify({ recipient: friend._id, user: user._id, type: "friendRequest" });
 
     res.json({ message: "Friend request sent" });
   } catch (error) {
@@ -200,6 +196,8 @@ const acceptFriendRequest = async (req, res) => {
     await user.save();
     await friend.save();
     await friendRequest.save();
+
+    await grantFirstFriendAchievements(user._id, friend._id);
 
     await FriendRequest.updateMany(
       {
