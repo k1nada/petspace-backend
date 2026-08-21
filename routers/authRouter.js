@@ -12,7 +12,7 @@ const {
   signout,
 } = require("../controllers/authController");
 const { check } = require("express-validator");
-const { authMiddleware } = require("../middleware/authMiddleware");
+const { authMiddleware, optionalAuthMiddleware } = require("../middleware/authMiddleware");
 
 router.post(
   "/signup",
@@ -29,7 +29,7 @@ router.post(
 
 router.post("/signin", signin);
 router.get("/users", getUsers);
-router.get("/user/:username", getUser);
+router.get("/user/:username", optionalAuthMiddleware, getUser);
 router.get("/me", authMiddleware, getMe);
 router.put("/user/:username", authMiddleware, updateUser);
 router.patch("/registration-steps", authMiddleware, registrationsSteps);
