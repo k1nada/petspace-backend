@@ -6,6 +6,7 @@ const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const { secret } = require("../config/config");
 const { errorResponse } = require("../utils/errors");
+const { withLiked } = require("../utils/likes");
 
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
@@ -107,7 +108,14 @@ const getUser = async (req, res) => {
       .populate({ path: "friends", select: "name username avatar city breed" });
 
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-    res.json(user);
+
+    const userId = req.user?.id;
+    const obj = user.toObject();
+    res.json({
+      ...obj,
+      photos: obj.photos.map((photo) => withLiked(photo, userId)),
+      avatarPhotos: obj.avatarPhotos.map((photo) => withLiked(photo, userId)),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
