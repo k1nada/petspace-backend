@@ -15,6 +15,7 @@ const setupSockets = (io) => {
   });
 
   io.on("connection", async (socket) => {
+    socket.join(socket.userId);
     await User.findByIdAndUpdate(socket.userId, { isOnline: true });
     io.emit("statusChange", { userId: socket.userId, isOnline: true });
 
@@ -27,7 +28,10 @@ const setupSockets = (io) => {
     });
 
     socket.on("disconnect", async () => {
-      await User.findByIdAndUpdate(socket.userId, { isOnline: false });
+      await User.findByIdAndUpdate(socket.userId, {
+        isOnline: false,
+        lastSeen: new Date(),
+      });
       io.emit("statusChange", { userId: socket.userId, isOnline: false });
     });
   });
