@@ -2,7 +2,7 @@ const { Schema, model } = require("mongoose");
 
 const Message = new Schema(
   {
-    roomId: { type: String, required: true },
+    roomId: { type: String, required: true, index: true },
     sender: {
       type: Schema.Types.ObjectId,
       ref: "User",

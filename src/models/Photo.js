@@ -3,7 +3,12 @@ const { Schema, model } = require("mongoose");
 const Photo = new Schema(
   {
     publicId: { type: String, required: true },
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
   {

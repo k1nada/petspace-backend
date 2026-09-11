@@ -8,12 +8,14 @@ const isLikedBy = (doc, userId) =>
   doc.likes.some((id) => id.toString() === userId);
 
 const toggleLike = async (Model, id, userId) => {
-  const doc = await Model.findById(id);
+  const doc = await Model.findById(id).select("likes user");
   if (!doc) return null;
   const liked = isLikedBy(doc, userId);
-  liked ? doc.likes.pull(userId) : doc.likes.push(userId);
-  await doc.save();
-  return { liked: !liked, count: doc.likes.length, ownerId: doc.user };
+  const update = liked
+    ? { $pull: { likes: userId } }
+    : { $addToSet: { likes: userId } };
+  const updated = await Model.findByIdAndUpdate(id, update, { new: true });
+  return { liked: !liked, count: updated.likes.length, ownerId: updated.user };
 };
 
 const likeHandler = (Model, type) => async (req, res) => {

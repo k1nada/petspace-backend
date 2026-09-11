@@ -2,7 +2,7 @@ const { Schema, model, Types } = require("mongoose");
 
 const FamilyMember = new Schema(
   {
-    owner: { type: Types.ObjectId, ref: "User", required: true },
+    owner: { type: Types.ObjectId, ref: "User", required: true, index: true },
     relation: { type: String, enum: ["parent", "child"], required: true },
     name: { type: String, trim: true, required: true },
     avatar: { type: String, default: null },
