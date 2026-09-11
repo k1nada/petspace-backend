@@ -18,7 +18,8 @@ const signup = async (req, res) => {
     if (!errors.isEmpty())
       return res.status(400).json({ message: "Errors", errors });
 
-    const { name, username, password, email } = req.body;
+    const { name, username, password } = req.body;
+    const email = req.body.email.trim().toLowerCase();
     if (await User.findOne({ email }))
       return res.status(400).json(errorResponse("EMAIL_ALREADY_EXISTS"));
     if (await User.findOne({ username }))
@@ -57,7 +58,8 @@ const signin = async (req, res) => {
     if (!errors.isEmpty())
       return res.status(400).json({ message: "Errors", errors });
 
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email.trim().toLowerCase();
     const user = await User.findOne({ email });
     if (!user || !bcrypt.compareSync(password, user.password))
       return res.status(401).json(errorResponse("INVALID_CREDENTIALS"));
@@ -148,7 +150,7 @@ const registrationsSteps = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { bio, sex, birthDate, country, city, breed, registrationCompleted },
-      { new: true },
+      { new: true, runValidators: true },
     );
     res.json(user);
   } catch (err) {
@@ -160,10 +162,14 @@ const updateUser = async (req, res) => {
   try {
     const { name, bio, sex, birthDate, country, city, breed, interests } =
       req.body;
+
+    if (name !== undefined && !name.trim())
+      return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { name, bio, sex, birthDate, country, city, breed, interests },
-      { new: true },
+      { new: true, runValidators: true },
     );
     res.json(user);
   } catch (err) {

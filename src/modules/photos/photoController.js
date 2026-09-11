@@ -34,6 +34,8 @@ const findPreviousAvatarUrl = async (avatarPhotoIds) => {
 
 const uploadAvatar = async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
     const photoCount = await Photo.countDocuments({ user: req.user.id });
     if (photoCount >= MAX_PHOTOS_PER_USER)
       return res.status(400).json(errorResponse("PHOTO_LIMIT_REACHED"));
@@ -65,6 +67,8 @@ const uploadAvatar = async (req, res) => {
 
 const uploadPhoto = async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
     const photoCount = await Photo.countDocuments({ user: req.user.id });
     if (photoCount >= MAX_PHOTOS_PER_USER)
       return res.status(400).json(errorResponse("PHOTO_LIMIT_REACHED"));

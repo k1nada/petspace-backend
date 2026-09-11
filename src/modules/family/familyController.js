@@ -2,6 +2,10 @@ const User = require("../../models/User");
 const FamilyMember = require("../../models/FamilyMember");
 const { errorResponse, reportError } = require("../../utils/errors");
 
+const MAX_NAME_LENGTH = 50;
+const MAX_BREED_LENGTH = 50;
+const MAX_USERNAME_LENGTH = 30;
+
 const getFamily = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username });
@@ -26,6 +30,24 @@ const addFamilyMember = async (req, res) => {
 
     if (!["parent", "child"].includes(relation))
       return res.status(400).json(errorResponse("INVALID_RELATION"));
+
+    if (name.length > MAX_NAME_LENGTH)
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    if (avatar !== undefined && typeof avatar !== "string")
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    if (
+      breed !== undefined &&
+      (typeof breed !== "string" || breed.length > MAX_BREED_LENGTH)
+    )
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    if (
+      username !== undefined &&
+      (typeof username !== "string" || username.length > MAX_USERNAME_LENGTH)
+    )
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     const member = await FamilyMember.create({
       owner: req.user.id,

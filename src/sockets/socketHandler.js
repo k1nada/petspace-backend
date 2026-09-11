@@ -8,7 +8,9 @@ const onlineSockets = new Map();
 const setupSockets = (io) => {
   io.use((socket, next) => {
     try {
-      const { id } = jwt.verify(socket.handshake.auth?.token, secret);
+      const { id } = jwt.verify(socket.handshake.auth?.token, secret, {
+        algorithms: ["HS256"],
+      });
       socket.userId = id;
       next();
     } catch {
