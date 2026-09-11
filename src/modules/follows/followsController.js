@@ -1,6 +1,6 @@
 const User = require("../../models/User");
 const { errorResponse, reportError } = require("../../utils/errors");
-const { findUsersByUsername } = require("../../utils/findUsers");
+const { resolveActingUserPair } = require("../../utils/findUsers");
 
 const PUBLIC_FIELDS = "username name avatar isOnline lastSeen followers";
 
@@ -42,32 +42,25 @@ const getFollowing = async (req, res) => {
 
 const followUser = async (req, res) => {
   try {
-    const username = req.params.username.toLowerCase();
-    const targetUsername = req.params.targetUsername.toLowerCase();
-
-    if (username === targetUsername)
+    if (
+      req.params.username.toLowerCase() ===
+      req.params.targetUsername.toLowerCase()
+    )
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    const [user, target] = await findUsersByUsername([
-      username,
-      targetUsername,
-    ]);
-
-    if (!user || !target)
-      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
+    const pair = await resolveActingUserPair(req, res, "targetUsername");
+    if (!pair) return;
+    const { user, other: target } = pair;
 
     if (user.following.some((id) => id.equals(target._id)))
       return res.status(400).json(errorResponse("ALREADY_FOLLOWING"));
 
-    user.following.push(target._id);
-    target.followers.push(user._id);
-
-    await user.save();
-    await target.save();
+    await User.findByIdAndUpdate(user._id, {
+      $addToSet: { following: target._id },
+    });
+    await User.findByIdAndUpdate(target._id, {
+      $addToSet: { followers: user._id },
+    });
 
     res.json({ message: "Now following" });
   } catch (err) {
@@ -77,26 +70,16 @@ const followUser = async (req, res) => {
 
 const unfollowUser = async (req, res) => {
   try {
-    const username = req.params.username.toLowerCase();
-    const targetUsername = req.params.targetUsername.toLowerCase();
+    const pair = await resolveActingUserPair(req, res, "targetUsername");
+    if (!pair) return;
+    const { user, other: target } = pair;
 
-    const [user, target] = await findUsersByUsername([
-      username,
-      targetUsername,
-    ]);
-
-    if (!user || !target)
-      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
-
-    user.following = user.following.filter((id) => !id.equals(target._id));
-    target.followers = target.followers.filter((id) => !id.equals(user._id));
-
-    await user.save();
-    await target.save();
+    await User.findByIdAndUpdate(user._id, {
+      $pull: { following: target._id },
+    });
+    await User.findByIdAndUpdate(target._id, {
+      $pull: { followers: user._id },
+    });
 
     res.json({ message: "Unfollowed" });
   } catch (err) {
@@ -106,28 +89,16 @@ const unfollowUser = async (req, res) => {
 
 const removeFollower = async (req, res) => {
   try {
-    const username = req.params.username.toLowerCase();
-    const followerUsername = req.params.followerUsername.toLowerCase();
+    const pair = await resolveActingUserPair(req, res, "followerUsername");
+    if (!pair) return;
+    const { user, other: follower } = pair;
 
-    const [user, follower] = await findUsersByUsername([
-      username,
-      followerUsername,
-    ]);
-
-    if (!user || !follower)
-      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
-
-    user.followers = user.followers.filter((id) => !id.equals(follower._id));
-    follower.following = follower.following.filter(
-      (id) => !id.equals(user._id),
-    );
-
-    await user.save();
-    await follower.save();
+    await User.findByIdAndUpdate(user._id, {
+      $pull: { followers: follower._id },
+    });
+    await User.findByIdAndUpdate(follower._id, {
+      $pull: { following: user._id },
+    });
 
     res.json({ message: "Follower removed" });
   } catch (err) {

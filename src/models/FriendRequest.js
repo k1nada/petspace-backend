@@ -29,4 +29,9 @@ FriendRequest.virtual("id").get(function () {
   return this._id;
 });
 
+FriendRequest.index(
+  { from: 1, to: 1 },
+  { unique: true, partialFilterExpression: { status: "pending" } },
+);
+
 module.exports = model("FriendRequest", FriendRequest);

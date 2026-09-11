@@ -9,19 +9,18 @@ const toggleRepost = async (req, res) => {
     if (post.user.toString() === req.user.id)
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    const existing = await Repost.findOne({
-      post: post._id,
-      user: req.user.id,
-    });
-
-    if (existing) {
-      await existing.deleteOne();
-    } else {
+    let reposted;
+    try {
       await Repost.create({ post: post._id, user: req.user.id });
+      reposted = true;
+    } catch (err) {
+      if (err.code !== 11000) throw err;
+      await Repost.deleteOne({ post: post._id, user: req.user.id });
+      reposted = false;
     }
 
     const count = await Repost.countDocuments({ post: post._id });
-    res.json({ reposted: !existing, count });
+    res.json({ reposted, count });
   } catch (err) {
     reportError(err, res);
   }
