@@ -7,7 +7,7 @@ const authMiddleware = (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json(errorResponse("TOKEN_INVALID"));
 
-    req.user = jwt.verify(token, secret);
+    req.user = jwt.verify(token, secret, { algorithms: ["HS256"] });
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -20,7 +20,7 @@ const authMiddleware = (req, res, next) => {
 const optionalAuthMiddleware = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
-    if (token) req.user = jwt.verify(token, secret);
+    if (token) req.user = jwt.verify(token, secret, { algorithms: ["HS256"] });
   } catch {}
   next();
 };

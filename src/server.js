@@ -66,6 +66,20 @@ const start = async () => {
     console.error("PORT is not set in .env");
     process.exit(1);
   }
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET is not set in .env");
+    process.exit(1);
+  }
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_SECRET_KEY
+  ) {
+    console.error(
+      "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_SECRET_KEY must be set in .env",
+    );
+    process.exit(1);
+  }
 
   try {
     await mongoose.connect(process.env.MONGO_URL);
