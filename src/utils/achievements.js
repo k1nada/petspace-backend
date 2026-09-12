@@ -1,35 +1,26 @@
 const User = require("../models/User");
 const { notify } = require("./notify");
 
-const awardFirstFriendAchievement = async (userId) => {
+const awardAchievement = async (userId, key) => {
   const user = await User.findById(userId);
 
-  if (user.achievements.firstFriend) {
+  if (user.achievements[key]) {
     return;
   }
 
-  user.achievements.firstFriend = true;
+  user.achievements[key] = true;
   await user.save();
 
   await notify({ recipient: userId, user: null, type: "achievement" });
 };
 
 const grantFirstFriendAchievements = async (userId, friendId) => {
-  await awardFirstFriendAchievement(userId);
-  await awardFirstFriendAchievement(friendId);
+  await awardAchievement(userId, "firstFriend");
+  await awardAchievement(friendId, "firstFriend");
 };
 
 const awardFirstPostAchievement = async (userId) => {
-  const user = await User.findById(userId);
-
-  if (user.achievements.firstPost) {
-    return;
-  }
-
-  user.achievements.firstPost = true;
-  await user.save();
-
-  await notify({ recipient: userId, user: null, type: "achievement" });
+  await awardAchievement(userId, "firstPost");
 };
 
 module.exports = { grantFirstFriendAchievements, awardFirstPostAchievement };
