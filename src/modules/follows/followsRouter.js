@@ -15,17 +15,17 @@ const {
 router.get("/followers/:username", optionalAuthMiddleware, getFollowers);
 router.get("/following/:username", optionalAuthMiddleware, getFollowing);
 router.post(
-  "/followers/:username/follow/:targetUsername",
+  "/following/:username/:targetUsername",
   authMiddleware,
   followUser,
 );
 router.delete(
-  "/followers/:username/unfollow/:targetUsername",
+  "/following/:username/:targetUsername",
   authMiddleware,
   unfollowUser,
 );
 router.delete(
-  "/followers/:username/remove/:followerUsername",
+  "/followers/:username/:followerUsername",
   authMiddleware,
   removeFollower,
 );

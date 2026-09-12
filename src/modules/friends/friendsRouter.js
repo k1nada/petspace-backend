@@ -16,12 +16,8 @@ const {
 
 router.get("/:username/suggestions", authMiddleware, getSuggestedFriends);
 router.get("/:username", optionalAuthMiddleware, getFriends);
-router.post("/:username/add/:friendUsername", authMiddleware, addFriend);
-router.delete(
-  "/:username/delete/:friendUsername",
-  authMiddleware,
-  deleteFriend,
-);
+router.post("/:username/:friendUsername", authMiddleware, addFriend);
+router.delete("/:username/:friendUsername", authMiddleware, deleteFriend);
 router.post("/request/:requestId/accept", authMiddleware, acceptFriendRequest);
 router.post("/request/:requestId/reject", authMiddleware, rejectFriendRequest);
 router.get("/requests/:username/pending", authMiddleware, getPendingRequests);

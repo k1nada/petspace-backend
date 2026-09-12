@@ -12,7 +12,7 @@ const {
 } = require("./commentController");
 
 router.post("/", authMiddleware, createComment);
-router.get("/postwall/:postId", optionalAuthMiddleware, getComments);
+router.get("/post/:postId", optionalAuthMiddleware, getComments);
 router.get("/photo/:photoId", optionalAuthMiddleware, getComments);
 router.put("/:commentId", authMiddleware, updateComment);
 router.delete("/:commentId", authMiddleware, deleteComment);
