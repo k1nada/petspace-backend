@@ -10,6 +10,7 @@ const Photo = new Schema(
       index: true,
     },
     likes: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    reposts: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
   {
     toJSON: { virtuals: true },

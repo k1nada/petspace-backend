@@ -1,9 +1,7 @@
 const Message = require("../../models/Message");
 const User = require("../../models/User");
 const { errorResponse, reportError } = require("../../utils/errors");
-
-const isRoomParticipant = (roomId, userId) =>
-  roomId.split("_").includes(userId);
+const { isRoomParticipant } = require("../../utils/chat");
 
 const getMessages = async (req, res) => {
   try {

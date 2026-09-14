@@ -1,5 +1,6 @@
 const Repost = require("../../models/Repost");
 const Post = require("../../models/Post");
+const Photo = require("../../models/Photo");
 const { errorResponse, reportError } = require("../../utils/errors");
 
 const toggleRepost = async (req, res) => {
@@ -26,4 +27,27 @@ const toggleRepost = async (req, res) => {
   }
 };
 
-module.exports = { toggleRepost };
+const toggleRepostPhoto = async (req, res) => {
+  try {
+    const photo = await Photo.findById(req.params.id).select("user reposts");
+    if (!photo) return res.status(404).json(errorResponse("NOT_FOUND"));
+    if (photo.user.toString() === req.user.id)
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    const reposted = photo.reposts.some(
+      (id) => id.toString() === req.user.id,
+    );
+    const update = reposted
+      ? { $pull: { reposts: req.user.id } }
+      : { $addToSet: { reposts: req.user.id } };
+    const updated = await Photo.findByIdAndUpdate(photo.id, update, {
+      new: true,
+    });
+
+    res.json({ reposted: !reposted, count: updated.reposts.length });
+  } catch (err) {
+    reportError(err, res);
+  }
+};
+
+module.exports = { toggleRepost, toggleRepostPhoto };

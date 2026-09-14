@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const { secret } = require("../../config/config");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { withLiked } = require("../../utils/likes");
+const { withReposted } = require("../../utils/reposts");
 
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
@@ -113,7 +114,9 @@ const getUser = async (req, res) => {
     const obj = user.toObject({ virtuals: true });
     res.json({
       ...obj,
-      photos: obj.photos.map((photo) => withLiked(photo, userId)),
+      photos: obj.photos.map((photo) =>
+        withReposted(withLiked(photo, userId), userId),
+      ),
       avatarPhotos: obj.avatarPhotos.map((photo) => withLiked(photo, userId)),
     });
   } catch (err) {
@@ -166,11 +169,19 @@ const updateUser = async (req, res) => {
     if (name !== undefined && !name.trim())
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, bio, sex, birthDate, country, city, breed, interests },
-      { new: true, runValidators: true },
-    );
+    const update = { name, bio, sex, birthDate, country, city, breed };
+    if (interests === null) {
+      update.interests = null;
+    } else if (interests !== undefined) {
+      for (const key of Object.keys(interests)) {
+        update[`interests.${key}`] = interests[key];
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, update, {
+      new: true,
+      runValidators: true,
+    });
     res.json(user);
   } catch (err) {
     reportError(err, res);
