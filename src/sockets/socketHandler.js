@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const { secret } = require("../config/config");
 const Message = require("../models/Message");
 const User = require("../models/User");
+const { isRoomParticipant } = require("../utils/chat");
 
 const onlineSockets = new Map();
 
@@ -21,12 +22,15 @@ const setupSockets = (io) => {
   io.on("connection", (socket) => {
     socket.join(socket.userId);
 
-    socket.on("join", (roomId) => socket.join(roomId));
+    socket.on("join", (roomId) => {
+      if (isRoomParticipant(roomId, socket.userId)) socket.join(roomId);
+    });
     socket.on("leave", (roomId) => socket.leave(roomId));
 
     socket.on("message", async ({ roomId, text, postId }) => {
       try {
         if (!text && !postId) return;
+        if (!isRoomParticipant(roomId, socket.userId)) return;
 
         const message = await Message.create({
           roomId,
