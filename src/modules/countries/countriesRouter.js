@@ -14,7 +14,10 @@ router.get("/", async (req, res) => {
 
 router.get("/cities", async (req, res) => {
   try {
-    const found = await Country.findOne({ country: req.query.country });
+    const { country } = req.query;
+    if (!country?.trim()) return res.json([]);
+
+    const found = await Country.findOne({ country });
     const cities = found ? [...found.cities].sort() : [];
     res.json(cities);
   } catch (err) {

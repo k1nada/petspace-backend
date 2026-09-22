@@ -15,7 +15,10 @@ const {
   authMiddleware,
   optionalAuthMiddleware,
 } = require("../../middleware/authMiddleware");
-const { authAttemptsLimiter } = require("../../middleware/rateLimiter");
+const {
+  authAttemptsLimiter,
+  searchLimiter,
+} = require("../../middleware/rateLimiter");
 
 router.post(
   "/signup",
@@ -44,7 +47,7 @@ router.get("/user/:username", optionalAuthMiddleware, getUser);
 router.get("/me", authMiddleware, getMe);
 router.put("/user/:username", authMiddleware, updateUser);
 router.patch("/registration-steps", authMiddleware, registrationsSteps);
-router.get("/users/search", authMiddleware, searchUsers);
+router.get("/users/search", authMiddleware, searchLimiter, searchUsers);
 router.post("/signout", authMiddleware, signout);
 
 module.exports = router;

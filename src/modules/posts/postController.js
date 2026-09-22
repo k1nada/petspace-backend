@@ -37,6 +37,19 @@ const createPost = async (req, res) => {
     if (content && content.length > MAX_POST_CONTENT_LENGTH)
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
+    const postwall = await Postwall.findById(postwallId);
+    if (!postwall) return res.status(404).json(errorResponse("NOT_FOUND"));
+
+    const isOwnWall = postwall.user.toString() === req.user.id;
+    if (!isOwnWall) {
+      const currentUser = await User.findById(req.user.id);
+      const isFriend = currentUser.friends.some(
+        (id) => id.toString() === postwall.user.toString(),
+      );
+      if (!isFriend)
+        return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    }
+
     const post = await Post.create({
       content,
       image,
