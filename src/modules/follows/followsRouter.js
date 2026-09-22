@@ -14,11 +14,7 @@ const {
 
 router.get("/followers/:username", optionalAuthMiddleware, getFollowers);
 router.get("/following/:username", optionalAuthMiddleware, getFollowing);
-router.post(
-  "/following/:username/:targetUsername",
-  authMiddleware,
-  followUser,
-);
+router.post("/following/:username/:targetUsername", authMiddleware, followUser);
 router.delete(
   "/following/:username/:targetUsername",
   authMiddleware,

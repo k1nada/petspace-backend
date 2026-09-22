@@ -24,6 +24,7 @@ const { setSocketIO } = require("./utils/notify");
 const { errorResponse } = require("./utils/errors");
 
 const app = express();
+app.set("trust proxy", 1);
 const http = require("http").createServer(app);
 const io = require("socket.io")(http, {
   cors: { origin: "*" },

@@ -57,19 +57,23 @@ const setupSockets = (io) => {
     });
 
     socket.on("disconnect", async () => {
-      const sockets = onlineSockets.get(socket.userId);
-      if (!sockets) return;
+      try {
+        const sockets = onlineSockets.get(socket.userId);
+        if (!sockets) return;
 
-      sockets.delete(socket.id);
-      if (sockets.size > 0) return;
+        sockets.delete(socket.id);
+        if (sockets.size > 0) return;
 
-      onlineSockets.delete(socket.userId);
-      await User.findByIdAndUpdate(socket.userId, {
-        isOnline: false,
-        lastSeen: new Date(),
-      });
-      if (!onlineSockets.has(socket.userId)) {
-        io.emit("statusChange", { userId: socket.userId, isOnline: false });
+        onlineSockets.delete(socket.userId);
+        await User.findByIdAndUpdate(socket.userId, {
+          isOnline: false,
+          lastSeen: new Date(),
+        });
+        if (!onlineSockets.has(socket.userId)) {
+          io.emit("statusChange", { userId: socket.userId, isOnline: false });
+        }
+      } catch (err) {
+        console.error(err);
       }
     });
 
