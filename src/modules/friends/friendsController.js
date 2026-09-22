@@ -2,9 +2,16 @@ const mongoose = require("mongoose");
 const User = require("../../models/User");
 const FriendRequest = require("../../models/FriendRequest");
 const { errorResponse, reportError } = require("../../utils/errors");
-const { resolveActingUserPair } = require("../../utils/findUsers");
+const {
+  resolveActingUserPair,
+  requireSelfByUsername,
+} = require("../../utils/findUsers");
 const { notify } = require("../../utils/notify");
-const { containsId } = require("../../utils/friends");
+const {
+  containsId,
+  linkAsFriends,
+  unlinkAsFriends,
+} = require("../../utils/friends");
 const { grantFirstFriendAchievements } = require("../../utils/achievements");
 
 const getFriends = async (req, res) => {
@@ -22,12 +29,8 @@ const getFriends = async (req, res) => {
 
 const getSuggestedFriends = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
+    const user = await requireSelfByUsername(req, res);
+    if (!user) return;
 
     const pendingRequests = await FriendRequest.find({
       status: "pending",
@@ -93,28 +96,7 @@ const addFriend = async (req, res) => {
       const acceptSession = await mongoose.startSession();
       try {
         await acceptSession.withTransaction(async () => {
-          await User.findByIdAndUpdate(
-            user._id,
-            {
-              $addToSet: {
-                friends: friend._id,
-                following: friend._id,
-                followers: friend._id,
-              },
-            },
-            { session: acceptSession },
-          );
-          await User.findByIdAndUpdate(
-            friend._id,
-            {
-              $addToSet: {
-                friends: user._id,
-                following: user._id,
-                followers: user._id,
-              },
-            },
-            { session: acceptSession },
-          );
+          await linkAsFriends(user._id, friend._id, acceptSession);
           await reverseRequest.save({ session: acceptSession });
         });
       } finally {
@@ -186,28 +168,7 @@ const deleteFriend = async (req, res) => {
     const session = await mongoose.startSession();
     try {
       await session.withTransaction(async () => {
-        await User.findByIdAndUpdate(
-          user._id,
-          {
-            $pull: {
-              friends: friend._id,
-              following: friend._id,
-              followers: friend._id,
-            },
-          },
-          { session },
-        );
-        await User.findByIdAndUpdate(
-          friend._id,
-          {
-            $pull: {
-              friends: user._id,
-              following: user._id,
-              followers: user._id,
-            },
-          },
-          { session },
-        );
+        await unlinkAsFriends(user._id, friend._id, session);
         await FriendRequest.deleteMany({
           status: "pending",
           $or: [
@@ -226,80 +187,80 @@ const deleteFriend = async (req, res) => {
   }
 };
 
-const acceptFriendRequest = async (req, res) => {
+const acceptFriendRequest = async (res, friendRequest) => {
+  const user = await User.findById(friendRequest.to);
+  const friend = await User.findById(friendRequest.from);
+
+  if (!user || !friend)
+    return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+
+  if (containsId(user.friends, friend._id))
+    return res.status(400).json(errorResponse("ALREADY_FRIENDS"));
+
+  friendRequest.status = "accepted";
+
+  const session = await mongoose.startSession();
   try {
-    const friendRequest = await FriendRequest.findById(req.params.requestId);
-
-    if (!friendRequest)
-      return res.status(404).json(errorResponse("REQUEST_NOT_FOUND"));
-
-    if (friendRequest.to.toString() !== req.user.id) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
-
-    const user = await User.findById(friendRequest.to);
-    const friend = await User.findById(friendRequest.from);
-
-    if (!user || !friend)
-      return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (containsId(user.friends, friend._id))
-      return res.status(400).json(errorResponse("ALREADY_FRIENDS"));
-
-    friendRequest.status = "accepted";
-
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        await User.findByIdAndUpdate(
-          user._id,
-          {
-            $addToSet: {
-              friends: friend._id,
-              following: friend._id,
-              followers: friend._id,
-            },
-          },
-          { session },
-        );
-        await User.findByIdAndUpdate(
-          friend._id,
-          {
-            $addToSet: {
-              friends: user._id,
-              following: user._id,
-              followers: user._id,
-            },
-          },
-          { session },
-        );
-        await friendRequest.save({ session });
-        await FriendRequest.updateMany(
-          {
-            _id: { $ne: friendRequest._id },
-            status: "pending",
-            $or: [
-              { from: user._id, to: friend._id },
-              { from: friend._id, to: user._id },
-            ],
-          },
-          { status: "accepted" },
-        ).session(session);
-      });
-    } finally {
-      await session.endSession();
-    }
-
-    await grantFirstFriendAchievements(user._id, friend._id);
-
-    res.json({ message: "Friend request accepted" });
-  } catch (err) {
-    reportError(err, res);
+    await session.withTransaction(async () => {
+      await linkAsFriends(user._id, friend._id, session);
+      await friendRequest.save({ session });
+      await FriendRequest.updateMany(
+        {
+          _id: { $ne: friendRequest._id },
+          status: "pending",
+          $or: [
+            { from: user._id, to: friend._id },
+            { from: friend._id, to: user._id },
+          ],
+        },
+        { status: "accepted" },
+      ).session(session);
+    });
+  } finally {
+    await session.endSession();
   }
+
+  await grantFirstFriendAchievements(user._id, friend._id);
+
+  res.json({ message: "Friend request accepted" });
 };
 
-const rejectFriendRequest = async (req, res) => {
+const rejectFriendRequest = async (res, friendRequest) => {
+  const sender = await User.findById(friendRequest.from);
+  const receiver = await User.findById(friendRequest.to);
+
+  friendRequest.status = "rejected";
+
+  const session = await mongoose.startSession();
   try {
+    await session.withTransaction(async () => {
+      if (sender && receiver) {
+        await User.findByIdAndUpdate(
+          sender._id,
+          { $pull: { following: receiver._id } },
+          { session },
+        );
+        await User.findByIdAndUpdate(
+          receiver._id,
+          { $pull: { followers: sender._id } },
+          { session },
+        );
+      }
+      await friendRequest.save({ session });
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  res.json({ message: "Friend request rejected" });
+};
+
+const respondToFriendRequest = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["accepted", "rejected"].includes(status))
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
     const friendRequest = await FriendRequest.findById(req.params.requestId);
 
     if (!friendRequest)
@@ -309,33 +270,15 @@ const rejectFriendRequest = async (req, res) => {
       return res.status(403).json(errorResponse("ACCESS_DENIED"));
     }
 
-    const sender = await User.findById(friendRequest.from);
-    const receiver = await User.findById(friendRequest.to);
-
-    friendRequest.status = "rejected";
-
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        if (sender && receiver) {
-          await User.findByIdAndUpdate(
-            sender._id,
-            { $pull: { following: receiver._id } },
-            { session },
-          );
-          await User.findByIdAndUpdate(
-            receiver._id,
-            { $pull: { followers: sender._id } },
-            { session },
-          );
-        }
-        await friendRequest.save({ session });
-      });
-    } finally {
-      await session.endSession();
+    if (friendRequest.status !== "pending") {
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
     }
 
-    res.json({ message: "Friend request rejected" });
+    if (status === "accepted") {
+      await acceptFriendRequest(res, friendRequest);
+    } else {
+      await rejectFriendRequest(res, friendRequest);
+    }
   } catch (err) {
     reportError(err, res);
   }
@@ -343,13 +286,8 @@ const rejectFriendRequest = async (req, res) => {
 
 const getPendingRequests = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
+    const user = await requireSelfByUsername(req, res);
+    if (!user) return;
 
     const requests = await FriendRequest.find({
       to: user._id,
@@ -367,7 +305,6 @@ module.exports = {
   getSuggestedFriends,
   addFriend,
   deleteFriend,
-  acceptFriendRequest,
-  rejectFriendRequest,
+  respondToFriendRequest,
   getPendingRequests,
 };

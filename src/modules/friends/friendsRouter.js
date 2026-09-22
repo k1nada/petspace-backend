@@ -9,8 +9,7 @@ const {
   getSuggestedFriends,
   addFriend,
   deleteFriend,
-  acceptFriendRequest,
-  rejectFriendRequest,
+  respondToFriendRequest,
   getPendingRequests,
 } = require("./friendsController");
 
@@ -18,8 +17,7 @@ router.get("/:username/suggestions", authMiddleware, getSuggestedFriends);
 router.get("/:username", optionalAuthMiddleware, getFriends);
 router.post("/:username/:friendUsername", authMiddleware, addFriend);
 router.delete("/:username/:friendUsername", authMiddleware, deleteFriend);
-router.post("/request/:requestId/accept", authMiddleware, acceptFriendRequest);
-router.post("/request/:requestId/reject", authMiddleware, rejectFriendRequest);
+router.patch("/request/:requestId", authMiddleware, respondToFriendRequest);
 router.get("/requests/:username/pending", authMiddleware, getPendingRequests);
 
 module.exports = router;
