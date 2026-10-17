@@ -5,8 +5,6 @@ const ERROR_CODES = {
 
   EMAIL_ALREADY_EXISTS: 1100,
   USERNAME_ALREADY_EXISTS: 1101,
-  INVALID_EMAIL_FORMAT: 1102,
-  PASSWORD_TOO_WEAK: 1103,
 
   USER_NOT_FOUND: 1200,
   POST_NOT_FOUND: 1201,
@@ -15,14 +13,9 @@ const ERROR_CODES = {
   NOT_FOUND: 1204,
 
   ACCESS_DENIED: 1300,
-  INSUFFICIENT_PERMISSIONS: 1301,
 
-  INSUFFICIENT_BALANCE: 1400,
-  ORDER_ALREADY_PROCESSED: 1401,
-
-  UPLOAD_FAILED: 1500,
-  DELETE_FAILED: 1501,
   PHOTO_LIMIT_REACHED: 1502,
+  FILE_TOO_LARGE: 1503,
 
   INTERNAL_SERVER_ERROR: 1600,
   MISSING_REQUIRED_FIELDS: 1601,
@@ -32,10 +25,7 @@ const ERROR_CODES = {
   REQUEST_ALREADY_SENT: 1701,
   REQUEST_NOT_FOUND: 1702,
 
-  ALREADY_LIKED: 1800,
-
   ALREADY_FOLLOWING: 1900,
-  NOT_FOLLOWING: 1901,
 
   FAMILY_MEMBER_NOT_FOUND: 2000,
   INVALID_RELATION: 2001,
@@ -56,6 +46,21 @@ const reportError = (err, res) => {
   }
 
   if (err.name === "CastError") {
+    return res.status(400).json(errorResponse("INVALID_REQUEST"));
+  }
+
+  if (err.name === "MulterError") {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res
+        .status(400)
+        .json({ ...errorResponse("FILE_TOO_LARGE"), message: err.message });
+    }
+    return res
+      .status(400)
+      .json({ ...errorResponse("INVALID_REQUEST"), message: err.message });
+  }
+
+  if (err.type === "entity.parse.failed") {
     return res.status(400).json(errorResponse("INVALID_REQUEST"));
   }
 

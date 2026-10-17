@@ -1,6 +1,11 @@
 const multer = require("multer");
 
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
 
 const storage = multer.memoryStorage();
 const upload = multer({

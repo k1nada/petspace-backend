@@ -6,4 +6,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET_KEY,
 });
 
-module.exports = cloudinary;
+const uploadToCloudinary = (buffer, folder) =>
+  new Promise((resolve, reject) =>
+    cloudinary.uploader
+      .upload_stream({ folder }, (err, result) =>
+        err ? reject(err) : resolve(result),
+      )
+      .end(buffer),
+  );
+
+module.exports = { cloudinary, uploadToCloudinary };
