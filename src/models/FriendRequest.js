@@ -34,4 +34,6 @@ FriendRequest.index(
   { unique: true, partialFilterExpression: { status: "pending" } },
 );
 
+FriendRequest.index({ to: 1, status: 1 });
+
 module.exports = model("FriendRequest", FriendRequest);

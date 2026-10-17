@@ -2,7 +2,7 @@ const { Schema, model } = require("mongoose");
 
 const Message = new Schema(
   {
-    roomId: { type: String, required: true, index: true },
+    roomId: { type: String, required: true },
     sender: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -21,5 +21,7 @@ const Message = new Schema(
     toJSON: { virtuals: true },
   },
 );
+
+Message.index({ roomId: 1, createdAt: -1 });
 
 module.exports = model("Message", Message);

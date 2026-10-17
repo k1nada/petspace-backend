@@ -21,19 +21,19 @@ const chatRouter = require("./modules/chat/chatRouter");
 const notificationRouter = require("./modules/notifications/notificationRouter");
 const setupSockets = require("./sockets/socketHandler");
 const { setSocketIO } = require("./utils/notify");
-const { errorResponse } = require("./utils/errors");
+const { reportError } = require("./utils/errors");
 
 const app = express();
 app.set("trust proxy", 1);
 const http = require("http").createServer(app);
 const io = require("socket.io")(http, {
-  cors: { origin: "*" },
+  cors: { origin: process.env.CLIENT_URL },
 });
 
 setSocketIO(io);
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json());
 app.use(apiLimiter);
 app.use(authRouter);
@@ -54,8 +54,7 @@ app.use(notificationRouter);
 setupSockets(io);
 
 app.use((err, req, res, _next) => {
-  console.error(err);
-  res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
+  reportError(err, res);
 });
 
 const start = async () => {
@@ -69,6 +68,10 @@ const start = async () => {
   }
   if (!process.env.JWT_SECRET) {
     console.error("JWT_SECRET is not set in .env");
+    process.exit(1);
+  }
+  if (!process.env.CLIENT_URL) {
+    console.error("CLIENT_URL is not set in .env");
     process.exit(1);
   }
   if (
