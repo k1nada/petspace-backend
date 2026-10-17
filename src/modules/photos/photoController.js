@@ -1,32 +1,21 @@
-const cloudinary = require("../../utils/cloudinary");
+const mongoose = require("mongoose");
+const { cloudinary, uploadToCloudinary } = require("../../utils/cloudinary");
 const User = require("../../models/User");
 const Photo = require("../../models/Photo");
-const { errorResponse } = require("../../utils/errors");
+const { errorResponse, reportError } = require("../../utils/errors");
 
 const MAX_PHOTOS_PER_USER = 300;
-
-const uploadToCloudinary = (buffer, folder) =>
-  new Promise((resolve, reject) =>
-    cloudinary.uploader
-      .upload_stream({ folder }, (err, result) =>
-        err ? reject(err) : resolve(result),
-      )
-      .end(buffer),
-  );
-
-const createPhoto = async (publicId, userId) => {
-  const photo = await Photo.create({ publicId, user: userId });
-  return photo;
-};
 
 const buildAvatarUrl = (publicId) =>
   `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/w_256,h_256,c_fill,g_face/${publicId}`;
 
-const findPreviousAvatarUrl = async (avatarPhotoIds) => {
+const findPreviousAvatarUrl = async (avatarPhotoIds, session) => {
   const previousAvatarPhotoId = avatarPhotoIds.at(-1);
   if (!previousAvatarPhotoId) return null;
 
-  const previousAvatarPhoto = await Photo.findById(previousAvatarPhotoId);
+  const previousAvatarPhoto = await Photo.findById(
+    previousAvatarPhotoId,
+  ).session(session);
   if (!previousAvatarPhoto) return null;
 
   return buildAvatarUrl(previousAvatarPhoto.publicId);
@@ -34,7 +23,8 @@ const findPreviousAvatarUrl = async (avatarPhotoIds) => {
 
 const uploadAvatar = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    if (!req.file)
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     const photoCount = await Photo.countDocuments({ user: req.user.id });
     if (photoCount >= MAX_PHOTOS_PER_USER)
@@ -45,7 +35,10 @@ const uploadAvatar = async (req, res) => {
       "/upload/",
       "/upload/w_256,h_256,c_fill,g_face/",
     );
-    const photo = await createPhoto(result.public_id, req.user.id);
+    const photo = await Photo.create({
+      publicId: result.public_id,
+      user: req.user.id,
+    });
 
     await User.findByIdAndUpdate(req.user.id, {
       avatar: optimizedUrl,
@@ -60,21 +53,24 @@ const uploadAvatar = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json(errorResponse("UPLOAD_FAILED"));
+    reportError(err, res);
   }
 };
 
 const uploadPhoto = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    if (!req.file)
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     const photoCount = await Photo.countDocuments({ user: req.user.id });
     if (photoCount >= MAX_PHOTOS_PER_USER)
       return res.status(400).json(errorResponse("PHOTO_LIMIT_REACHED"));
 
     const result = await uploadToCloudinary(req.file.buffer, "my-app/photos");
-    const photo = await createPhoto(result.public_id, req.user.id);
+    const photo = await Photo.create({
+      publicId: result.public_id,
+      user: req.user.id,
+    });
 
     await User.findByIdAndUpdate(req.user.id, { $push: { photos: photo._id } });
 
@@ -87,49 +83,65 @@ const uploadPhoto = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json(errorResponse("UPLOAD_FAILED"));
+    reportError(err, res);
   }
 };
 
 const deletePhoto = async (req, res) => {
   try {
-    const photo = await Photo.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user.id,
-    });
-    if (!photo) return res.status(404).json(errorResponse("PHOTO_NOT_FOUND"));
+    let photo;
+    let isCurrentAvatar;
+    let newAvatarUrl;
 
-    const user = await User.findById(req.user.id);
-    const lastAvatarPhotoId = user.avatarPhotos.at(-1);
-    const isCurrentAvatar =
-      lastAvatarPhotoId?.toString() === photo._id.toString();
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        photo = await Photo.findOneAndDelete({
+          _id: req.params.id,
+          user: req.user.id,
+        }).session(session);
+        if (!photo) return;
 
-    const remainingPhotoIds = user.photos.filter(
-      (id) => id.toString() !== photo._id.toString(),
-    );
-    const remainingAvatarPhotoIds = user.avatarPhotos.filter(
-      (id) => id.toString() !== photo._id.toString(),
-    );
+        const user = await User.findById(req.user.id).session(session);
+        const lastAvatarPhotoId = user.avatarPhotos.at(-1);
+        isCurrentAvatar =
+          lastAvatarPhotoId?.toString() === photo._id.toString();
 
-    const update = {
-      photos: remainingPhotoIds,
-      avatarPhotos: remainingAvatarPhotoIds,
-    };
+        const remainingPhotoIds = user.photos.filter(
+          (id) => id.toString() !== photo._id.toString(),
+        );
+        const remainingAvatarPhotoIds = user.avatarPhotos.filter(
+          (id) => id.toString() !== photo._id.toString(),
+        );
 
-    if (isCurrentAvatar) {
-      update.avatar = await findPreviousAvatarUrl(remainingAvatarPhotoIds);
+        const update = {
+          photos: remainingPhotoIds,
+          avatarPhotos: remainingAvatarPhotoIds,
+        };
+
+        if (isCurrentAvatar) {
+          newAvatarUrl = await findPreviousAvatarUrl(
+            remainingAvatarPhotoIds,
+            session,
+          );
+          update.avatar = newAvatarUrl;
+        }
+
+        await User.findByIdAndUpdate(req.user.id, update, { session });
+      });
+    } finally {
+      await session.endSession();
     }
 
-    await Promise.all([
-      User.findByIdAndUpdate(req.user.id, update),
-      cloudinary.uploader.destroy(photo.publicId),
-    ]);
+    if (!photo) return res.status(404).json(errorResponse("PHOTO_NOT_FOUND"));
 
-    res.json({ data: { success: true } });
+    await cloudinary.uploader.destroy(photo.publicId);
+
+    res.json({
+      data: { avatarChanged: isCurrentAvatar, avatar: newAvatarUrl ?? null },
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json(errorResponse("DELETE_FAILED"));
+    reportError(err, res);
   }
 };
 
@@ -154,9 +166,27 @@ const deleteAvatar = async (req, res) => {
 
     res.json({ data: { success: true } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json(errorResponse("DELETE_FAILED"));
+    reportError(err, res);
   }
 };
 
-module.exports = { uploadAvatar, uploadPhoto, deletePhoto, deleteAvatar };
+const uploadFamilyAvatar = async (req, res) => {
+  try {
+    if (!req.file)
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    const result = await uploadToCloudinary(req.file.buffer, "my-app/family");
+
+    res.json({ data: { url: buildAvatarUrl(result.public_id) } });
+  } catch (err) {
+    reportError(err, res);
+  }
+};
+
+module.exports = {
+  uploadAvatar,
+  uploadPhoto,
+  deletePhoto,
+  deleteAvatar,
+  uploadFamilyAvatar,
+};
