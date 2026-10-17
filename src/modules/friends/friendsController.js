@@ -14,6 +14,9 @@ const {
 } = require("../../utils/friends");
 const { grantFirstFriendAchievements } = require("../../utils/achievements");
 
+const SUGGESTED_FRIENDS_CANDIDATE_POOL = 30;
+const SUGGESTED_FRIENDS_RESULT_COUNT = 5;
+
 const getFriends = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).populate(
@@ -51,17 +54,17 @@ const getSuggestedFriends = async (req, res) => {
     const candidates = await User.find(
       { _id: { $nin: alreadyConnectedIds }, name: { $nin: [null, ""] } },
       "name username avatar breed city",
-    ).limit(30);
+    ).limit(SUGGESTED_FRIENDS_CANDIDATE_POOL);
 
     const matchScore = (candidate) => {
       let score = 0;
-      if (candidate.breed === user.breed) score += 2;
-      if (candidate.city === user.city) score += 1;
+      if (user.breed && candidate.breed === user.breed) score += 2;
+      if (user.city && candidate.city === user.city) score += 1;
       return score;
     };
 
     candidates.sort((a, b) => matchScore(b) - matchScore(a));
-    const bestMatches = candidates.slice(0, 5);
+    const bestMatches = candidates.slice(0, SUGGESTED_FRIENDS_RESULT_COUNT);
 
     res.json(bestMatches);
   } catch (err) {

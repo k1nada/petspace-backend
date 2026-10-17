@@ -4,18 +4,32 @@ const Photo = require("../../models/Photo");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { notify } = require("../../utils/notify");
 
-const isLikedBy = (doc, userId) =>
-  doc.likes.some((id) => id.toString() === userId);
-
 const toggleLike = async (Model, id, userId) => {
-  const doc = await Model.findById(id).select("likes user");
-  if (!doc) return null;
-  const liked = isLikedBy(doc, userId);
-  const update = liked
-    ? { $pull: { likes: userId } }
-    : { $addToSet: { likes: userId } };
-  const updated = await Model.findByIdAndUpdate(id, update, { new: true });
-  return { liked: !liked, count: updated.likes.length, ownerId: updated.user };
+  const likedDoc = await Model.findOneAndUpdate(
+    { _id: id, likes: { $ne: userId } },
+    { $addToSet: { likes: userId } },
+    { new: true },
+  );
+  if (likedDoc)
+    return {
+      liked: true,
+      count: likedDoc.likes.length,
+      ownerId: likedDoc.user,
+    };
+
+  const unlikedDoc = await Model.findOneAndUpdate(
+    { _id: id, likes: userId },
+    { $pull: { likes: userId } },
+    { new: true },
+  );
+  if (unlikedDoc)
+    return {
+      liked: false,
+      count: unlikedDoc.likes.length,
+      ownerId: unlikedDoc.user,
+    };
+
+  return null;
 };
 
 const likeHandler = (Model, type) => async (req, res) => {

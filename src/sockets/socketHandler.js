@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { isRoomParticipant } = require("../utils/chat");
 
 const onlineSockets = new Map();
+const MAX_MESSAGE_LENGTH = 2000;
 
 const setupSockets = (io) => {
   io.use((socket, next) => {
@@ -27,15 +28,18 @@ const setupSockets = (io) => {
     });
     socket.on("leave", (roomId) => socket.leave(roomId));
 
-    socket.on("message", async ({ roomId, text, postId }) => {
+    socket.on("message", async (payload) => {
       try {
-        if (!text && !postId) return;
+        const { roomId, text, postId } = payload ?? {};
+        const messageText = typeof text === "string" ? text.trim() : "";
+        if (!messageText && !postId) return;
+        if (messageText.length > MAX_MESSAGE_LENGTH) return;
         if (!isRoomParticipant(roomId, socket.userId)) return;
 
         const message = await Message.create({
           roomId,
           sender: socket.userId,
-          text: text || "",
+          text: messageText,
           post: postId || null,
         });
         const populated = await message.populate([

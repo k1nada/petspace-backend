@@ -1,4 +1,4 @@
 const isRoomParticipant = (roomId, userId) =>
-  roomId.split("_").includes(userId);
+  typeof roomId === "string" && roomId.split("_").includes(userId);
 
 module.exports = { isRoomParticipant };
