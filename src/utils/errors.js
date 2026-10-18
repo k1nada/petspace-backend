@@ -67,4 +67,4 @@ const reportError = (err, res) => {
   res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR"));
 };
 
-module.exports = { ERROR_CODES, errorResponse, reportError };
+module.exports = { errorResponse, reportError };
