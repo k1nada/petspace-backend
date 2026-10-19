@@ -6,8 +6,16 @@ const Repost = require("../../models/Repost");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { awardFirstPostAchievement } = require("../../utils/achievements");
 const { withLiked } = require("../../utils/likes");
+const { requireSelfByUsername } = require("../../utils/findUsers");
+const { validateContentLength } = require("../../utils/validation");
 
 const MAX_POST_CONTENT_LENGTH = 3000;
+
+const isOwnCloudinaryUrl = (url) =>
+  typeof url === "string" &&
+  url.startsWith(
+    `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`,
+  );
 
 const serializePosts = async (posts, userId) => {
   const postIds = posts.map((post) => post._id);
@@ -34,7 +42,12 @@ const createPost = async (req, res) => {
     const { content, postwallId, image } = req.body;
     if ((!content && !image) || !postwallId)
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
-    if (content && content.length > MAX_POST_CONTENT_LENGTH)
+    if (
+      content &&
+      !validateContentLength(content, MAX_POST_CONTENT_LENGTH, res)
+    )
+      return;
+    if (image && !isOwnCloudinaryUrl(image))
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     const postwall = await Postwall.findById(postwallId);
@@ -135,12 +148,8 @@ const getPosts = async (req, res) => {
 
 const getFeed = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-
-    if (req.user.id !== user._id.toString()) {
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
-    }
+    const user = await requireSelfByUsername(req, res);
+    if (!user) return;
 
     const feedUserIds = [
       ...new Set(
@@ -192,8 +201,7 @@ const updatePost = async (req, res) => {
     const { content } = req.body;
     if (!content)
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
-    if (content.length > MAX_POST_CONTENT_LENGTH)
-      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    if (!validateContentLength(content, MAX_POST_CONTENT_LENGTH, res)) return;
 
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json(errorResponse("POST_NOT_FOUND"));
@@ -216,11 +224,14 @@ const deletePost = async (req, res) => {
       return res.status(403).json(errorResponse("ACCESS_DENIED"));
 
     const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-      await Post.deleteOne({ _id: post._id }).session(session);
-      await Repost.deleteMany({ post: post._id }).session(session);
-    });
-    await session.endSession();
+    try {
+      await session.withTransaction(async () => {
+        await Post.deleteOne({ _id: post._id }).session(session);
+        await Repost.deleteMany({ post: post._id }).session(session);
+      });
+    } finally {
+      await session.endSession();
+    }
 
     res.json({ message: "Post deleted" });
   } catch (err) {

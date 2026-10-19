@@ -4,6 +4,10 @@ const Photo = require("../../models/Photo");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { notify } = require("../../utils/notify");
 const { withLiked } = require("../../utils/likes");
+const {
+  validateContentLength,
+  assertOwner,
+} = require("../../utils/validation");
 
 const MAX_COMMENT_CONTENT_LENGTH = 1000;
 
@@ -12,14 +16,20 @@ const createComment = async (req, res) => {
     const { content, postId, photoId, replyCommentId } = req.body;
     if (!content || (!postId && !photoId))
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
-    if (content.length > MAX_COMMENT_CONTENT_LENGTH)
-      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    if (!validateContentLength(content, MAX_COMMENT_CONTENT_LENGTH, res))
+      return;
 
     let replyTo = null;
     if (replyCommentId) {
-      replyTo = await Comment.findById(replyCommentId).select("user parent");
+      replyTo = await Comment.findById(replyCommentId).select(
+        "user parent post photo",
+      );
       if (!replyTo)
         return res.status(404).json(errorResponse("COMMENT_NOT_FOUND"));
+
+      const repliedTarget = postId ? replyTo.post : replyTo.photo;
+      if (String(repliedTarget) !== String(postId || photoId))
+        return res.status(400).json(errorResponse("INVALID_REQUEST"));
     }
 
     const comment = await Comment.create({
@@ -77,14 +87,13 @@ const updateComment = async (req, res) => {
     const { content } = req.body;
     if (!content)
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
-    if (content.length > MAX_COMMENT_CONTENT_LENGTH)
-      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    if (!validateContentLength(content, MAX_COMMENT_CONTENT_LENGTH, res))
+      return;
 
     const comment = await Comment.findById(req.params.commentId);
     if (!comment)
       return res.status(404).json(errorResponse("COMMENT_NOT_FOUND"));
-    if (comment.user.toString() !== req.user.id)
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    if (!assertOwner(comment.user, req.user.id, res)) return;
 
     comment.content = content;
     await comment.save();
@@ -99,8 +108,7 @@ const deleteComment = async (req, res) => {
     const comment = await Comment.findById(req.params.commentId);
     if (!comment)
       return res.status(404).json(errorResponse("COMMENT_NOT_FOUND"));
-    if (comment.user.toString() !== req.user.id)
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    if (!assertOwner(comment.user, req.user.id, res)) return;
 
     await comment.deleteOne();
     await Comment.deleteMany({ parent: comment._id });

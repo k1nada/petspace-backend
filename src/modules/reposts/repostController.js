@@ -7,8 +7,6 @@ const toggleRepost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json(errorResponse("POST_NOT_FOUND"));
-    if (post.user.toString() === req.user.id)
-      return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     let reposted;
     try {
@@ -29,22 +27,23 @@ const toggleRepost = async (req, res) => {
 
 const toggleRepostPhoto = async (req, res) => {
   try {
-    const photo = await Photo.findById(req.params.id).select("user reposts");
+    const photo = await Photo.findById(req.params.id).select("reposts");
     if (!photo) return res.status(404).json(errorResponse("NOT_FOUND"));
-    if (photo.user.toString() === req.user.id)
-      return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    const reposted = photo.reposts.some(
-      (id) => id.toString() === req.user.id,
+    const added = await Photo.findOneAndUpdate(
+      { _id: photo.id, reposts: { $ne: req.user.id } },
+      { $addToSet: { reposts: req.user.id } },
+      { new: true },
     );
-    const update = reposted
-      ? { $pull: { reposts: req.user.id } }
-      : { $addToSet: { reposts: req.user.id } };
-    const updated = await Photo.findByIdAndUpdate(photo.id, update, {
-      new: true,
-    });
+    if (added) return res.json({ reposted: true, count: added.reposts.length });
 
-    res.json({ reposted: !reposted, count: updated.reposts.length });
+    const removed = await Photo.findOneAndUpdate(
+      { _id: photo.id, reposts: req.user.id },
+      { $pull: { reposts: req.user.id } },
+      { new: true },
+    );
+    if (!removed) return res.status(404).json(errorResponse("NOT_FOUND"));
+    res.json({ reposted: false, count: removed.reposts.length });
   } catch (err) {
     reportError(err, res);
   }
