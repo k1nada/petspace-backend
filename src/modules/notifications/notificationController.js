@@ -1,6 +1,6 @@
-const User = require("../../models/User");
 const Notification = require("../../models/Notification");
 const { errorResponse, reportError } = require("../../utils/errors");
+const { requireSelfByUsername } = require("../../utils/findUsers");
 
 const toAppNotification = (n) => ({
   id: n.id,
@@ -12,10 +12,8 @@ const toAppNotification = (n) => ({
 
 const getNotifications = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-    if (req.user.id !== user._id.toString())
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    const user = await requireSelfByUsername(req, res);
+    if (!user) return;
 
     const notifications = await Notification.find({ recipient: user._id })
       .sort({ createdAt: -1 })
@@ -45,10 +43,8 @@ const markNotificationRead = async (req, res) => {
 
 const markAllNotificationsRead = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-    if (req.user.id !== user._id.toString())
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    const user = await requireSelfByUsername(req, res);
+    if (!user) return;
 
     await Notification.updateMany(
       { recipient: user._id, read: false },

@@ -1,10 +1,12 @@
 const User = require("../../models/User");
 const FamilyMember = require("../../models/FamilyMember");
 const { errorResponse, reportError } = require("../../utils/errors");
+const { assertOwner } = require("../../utils/validation");
 
 const MAX_NAME_LENGTH = 50;
 const MAX_BREED_LENGTH = 50;
 const MAX_USERNAME_LENGTH = 30;
+const MAX_AVATAR_URL_LENGTH = 500;
 
 const getFamily = async (req, res) => {
   try {
@@ -31,10 +33,13 @@ const addFamilyMember = async (req, res) => {
     if (!["parent", "child"].includes(relation))
       return res.status(400).json(errorResponse("INVALID_RELATION"));
 
-    if (name.length > MAX_NAME_LENGTH)
+    if (typeof name !== "string" || name.length > MAX_NAME_LENGTH)
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
-    if (avatar !== undefined && typeof avatar !== "string")
+    if (
+      avatar !== undefined &&
+      (typeof avatar !== "string" || avatar.length > MAX_AVATAR_URL_LENGTH)
+    )
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
     if (
@@ -70,8 +75,7 @@ const deleteFamilyMember = async (req, res) => {
     if (!member)
       return res.status(404).json(errorResponse("FAMILY_MEMBER_NOT_FOUND"));
 
-    if (member.owner.toString() !== req.user.id)
-      return res.status(403).json(errorResponse("ACCESS_DENIED"));
+    if (!assertOwner(member.owner, req.user.id, res)) return;
 
     await member.deleteOne();
     res.json({ message: "Family member removed" });
