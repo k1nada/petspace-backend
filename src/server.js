@@ -22,6 +22,7 @@ const notificationRouter = require("./modules/notifications/notificationRouter")
 const setupSockets = require("./sockets/socketHandler");
 const { setSocketIO } = require("./utils/notify");
 const { reportError } = require("./utils/errors");
+const User = require("./models/User");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -87,6 +88,10 @@ const start = async () => {
 
   try {
     await mongoose.connect(process.env.MONGO_URL);
+    await User.updateMany(
+      { isOnline: true },
+      { isOnline: false, lastSeen: new Date() },
+    );
     http.listen(process.env.PORT, () =>
       console.log(`Server started on port ${process.env.PORT}`),
     );

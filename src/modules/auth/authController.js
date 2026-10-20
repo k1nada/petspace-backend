@@ -9,6 +9,7 @@ const { secret } = require("../../config/config");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { withLiked } = require("../../utils/likes");
 const { withReposted } = require("../../utils/reposts");
+const { isUserOnline } = require("../../utils/presence");
 
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
@@ -65,10 +66,6 @@ const signin = async (req, res) => {
     if (!user || !bcrypt.compareSync(password, user.password))
       return res.status(401).json(errorResponse("INVALID_CREDENTIALS"));
 
-    user.isOnline = true;
-    user.lastSeen = new Date();
-    await user.save();
-
     res.json({
       token: generateAccessToken(user._id),
       user: {
@@ -82,16 +79,8 @@ const signin = async (req, res) => {
   }
 };
 
-const signout = async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.user.id, {
-      isOnline: false,
-      lastSeen: new Date(),
-    });
-    res.json({ success: true });
-  } catch (err) {
-    reportError(err, res);
-  }
+const signout = (req, res) => {
+  res.json({ success: true });
 };
 
 const getUser = async (req, res) => {
@@ -106,7 +95,10 @@ const getUser = async (req, res) => {
         path: "avatarPhotos",
         populate: { path: "user", select: "name avatar" },
       })
-      .populate({ path: "friends", select: "name username avatar city breed" });
+      .populate({
+        path: "friends",
+        select: "name username avatar city breed lastSeen",
+      });
 
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
 
@@ -114,6 +106,11 @@ const getUser = async (req, res) => {
     const obj = user.toObject({ virtuals: true });
     res.json({
       ...obj,
+      isOnline: isUserOnline(user._id),
+      friends: obj.friends.map((friend) => ({
+        ...friend,
+        isOnline: isUserOnline(friend._id),
+      })),
       photos: obj.photos.map((photo) =>
         withReposted(withLiked(photo, userId), userId),
       ),
@@ -141,6 +138,26 @@ const getMe = async (req, res) => {
     }).distinct("to");
 
     res.json({ ...user.toJSON(), sentRequests });
+  } catch (err) {
+    reportError(err, res);
+  }
+};
+
+const getUsersPresence = async (req, res) => {
+  try {
+    if (!validationResult(req).isEmpty()) {
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    }
+
+    const ids = req.query.ids.split(",");
+    const users = await User.find({ _id: { $in: ids } }).select("lastSeen");
+    res.json(
+      users.map((user) => ({
+        id: user.id,
+        isOnline: isUserOnline(user._id),
+        lastSeen: user.lastSeen,
+      })),
+    );
   } catch (err) {
     reportError(err, res);
   }
@@ -214,6 +231,7 @@ module.exports = {
   signout,
   getUser,
   getMe,
+  getUsersPresence,
   registrationsSteps,
   updateUser,
   searchUsers,

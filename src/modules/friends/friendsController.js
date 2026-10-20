@@ -13,6 +13,7 @@ const {
   unlinkAsFriends,
 } = require("../../utils/friends");
 const { grantFirstFriendAchievements } = require("../../utils/achievements");
+const { isUserOnline } = require("../../utils/presence");
 
 const SUGGESTED_FRIENDS_CANDIDATE_POOL = 30;
 const SUGGESTED_FRIENDS_RESULT_COUNT = 5;
@@ -21,10 +22,15 @@ const getFriends = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).populate(
       "friends",
-      "username name avatar breed isOnline lastSeen",
+      "username name avatar breed lastSeen",
     );
     if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
-    res.json(user.friends);
+    res.json(
+      user.friends.map((friend) => ({
+        ...friend.toJSON(),
+        isOnline: isUserOnline(friend._id),
+      })),
+    );
   } catch (err) {
     reportError(err, res);
   }

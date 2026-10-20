@@ -7,10 +7,11 @@ const {
   updateUser,
   registrationsSteps,
   getMe,
+  getUsersPresence,
   searchUsers,
   signout,
 } = require("./authController");
-const { check } = require("express-validator");
+const { check, query } = require("express-validator");
 const {
   authMiddleware,
   optionalAuthMiddleware,
@@ -19,6 +20,9 @@ const {
   authAttemptsLimiter,
   searchLimiter,
 } = require("../../middleware/rateLimiter");
+
+const MAX_PRESENCE_IDS = 200;
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
 
 router.post(
   "/signup",
@@ -49,5 +53,21 @@ router.put("/user/:username", authMiddleware, updateUser);
 router.patch("/registration-steps", authMiddleware, registrationsSteps);
 router.get("/users/search", authMiddleware, searchLimiter, searchUsers);
 router.post("/signout", authMiddleware, signout);
+router.get(
+  "/users/presence",
+  authMiddleware,
+  [
+    query("ids")
+      .isString()
+      .custom((value) => {
+        const ids = value.split(",");
+        return (
+          ids.length <= MAX_PRESENCE_IDS &&
+          ids.every((id) => OBJECT_ID_PATTERN.test(id))
+        );
+      }),
+  ],
+  getUsersPresence,
+);
 
 module.exports = router;
