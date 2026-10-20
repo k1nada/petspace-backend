@@ -3,15 +3,13 @@ const User = require("../../models/User");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { resolveActingUserPair } = require("../../utils/findUsers");
 
-const PUBLIC_FIELDS = "username name avatar isOnline lastSeen followers";
+const PUBLIC_FIELDS = "username name avatar followers";
 
 const withFollowersCount = (user) => ({
   id: user.id,
   username: user.username,
   name: user.name,
   avatar: user.avatar,
-  isOnline: user.isOnline,
-  lastSeen: user.lastSeen,
   followersCount: user.followers.length,
 });
 

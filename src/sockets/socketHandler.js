@@ -1,11 +1,35 @@
 const jwt = require("jsonwebtoken");
 const { secret } = require("../config/config");
 const Message = require("../models/Message");
+const Post = require("../models/Post");
 const User = require("../models/User");
-const { isRoomParticipant } = require("../utils/chat");
+const { errorResponse } = require("../utils/errors");
+const {
+  MAX_MESSAGE_LENGTH,
+  isRoomParticipant,
+  getPartnerId,
+} = require("../utils/chat");
+const {
+  isUserOnline,
+  addConnection,
+  removeConnection,
+  getStatusWatcherIds,
+} = require("../utils/presence");
 
-const onlineSockets = new Map();
-const MAX_MESSAGE_LENGTH = 2000;
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
+const MAX_TEMP_ID_LENGTH = 64;
+
+const sendStatus = async (io, userId) => {
+  const watcherIds = await getStatusWatcherIds(userId);
+  if (watcherIds.length === 0) return;
+
+  const user = await User.findById(userId).select("lastSeen");
+  io.to(watcherIds).emit("statusChange", {
+    userId,
+    isOnline: isUserOnline(userId),
+    lastSeen: user?.lastSeen ?? null,
+  });
+};
 
 const setupSockets = (io) => {
   io.use((socket, next) => {
@@ -23,26 +47,42 @@ const setupSockets = (io) => {
   io.on("connection", (socket) => {
     socket.join(socket.userId);
 
-    socket.on("join", (roomId) => {
-      if (isRoomParticipant(roomId, socket.userId)) socket.join(roomId);
-    });
-    socket.on("leave", (roomId) => socket.leave(roomId));
-
-    socket.on("message", async (payload) => {
+    socket.on("message", async (payload, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
       try {
-        const { roomId, text, postId } = payload ?? {};
+        const { roomId, text, postId, tempId } = payload ?? {};
         const messageText = typeof text === "string" ? text.trim() : "";
-        if (!messageText && !postId) return;
-        if (messageText.length > MAX_MESSAGE_LENGTH) return;
-        if (!isRoomParticipant(roomId, socket.userId)) return;
+        const hasPost = typeof postId === "string" && postId !== "";
 
-        const message = await Message.create({
+        if (!messageText && !hasPost) {
+          return reply({ error: errorResponse("INVALID_REQUEST") });
+        }
+        if (messageText.length > MAX_MESSAGE_LENGTH) {
+          return reply({ error: errorResponse("INVALID_REQUEST") });
+        }
+        if (hasPost && !OBJECT_ID_PATTERN.test(postId)) {
+          return reply({ error: errorResponse("INVALID_REQUEST") });
+        }
+        if (!isRoomParticipant(roomId, socket.userId)) {
+          return reply({ error: errorResponse("ACCESS_DENIED") });
+        }
+
+        const partnerId = getPartnerId(roomId, socket.userId);
+        if (!(await User.exists({ _id: partnerId }))) {
+          return reply({ error: errorResponse("USER_NOT_FOUND") });
+        }
+        if (hasPost && !(await Post.exists({ _id: postId }))) {
+          return reply({ error: errorResponse("POST_NOT_FOUND") });
+        }
+
+        const created = await Message.create({
           roomId,
+          participants: roomId.split("_"),
           sender: socket.userId,
           text: messageText,
-          post: postId || null,
+          post: hasPost ? postId : null,
         });
-        const populated = await message.populate([
+        await created.populate([
           { path: "sender", select: "username name avatar" },
           {
             path: "post",
@@ -50,49 +90,36 @@ const setupSockets = (io) => {
             populate: { path: "user", select: "name avatar username" },
           },
         ]);
-        io.to(roomId).emit("message", populated);
 
-        const [firstId, secondId] = roomId.split("_");
-        const recipientId = firstId === socket.userId ? secondId : firstId;
-        io.to(recipientId).emit("newMessage", populated);
+        const message = created.toJSON();
+        if (typeof tempId === "string" && tempId.length <= MAX_TEMP_ID_LENGTH) {
+          message.tempId = tempId;
+        }
+
+        io.to(socket.userId).to(partnerId).emit("message", message);
+        reply({ message });
       } catch (err) {
         console.error(err);
+        reply({ error: errorResponse("INTERNAL_SERVER_ERROR") });
       }
     });
 
     socket.on("disconnect", async () => {
+      if (!removeConnection(socket.userId, socket.id)) return;
       try {
-        const sockets = onlineSockets.get(socket.userId);
-        if (!sockets) return;
-
-        sockets.delete(socket.id);
-        if (sockets.size > 0) return;
-
-        onlineSockets.delete(socket.userId);
         await User.findByIdAndUpdate(socket.userId, {
           isOnline: false,
           lastSeen: new Date(),
         });
-        if (!onlineSockets.has(socket.userId)) {
-          io.emit("statusChange", { userId: socket.userId, isOnline: false });
-        }
+        await sendStatus(io, socket.userId);
       } catch (err) {
         console.error(err);
       }
     });
 
-    const sockets = onlineSockets.get(socket.userId) ?? new Set();
-    const wasOffline = sockets.size === 0;
-    sockets.add(socket.id);
-    onlineSockets.set(socket.userId, sockets);
-
-    if (wasOffline) {
+    if (addConnection(socket.userId, socket.id)) {
       User.findByIdAndUpdate(socket.userId, { isOnline: true })
-        .then(() => {
-          if (onlineSockets.has(socket.userId)) {
-            io.emit("statusChange", { userId: socket.userId, isOnline: true });
-          }
-        })
+        .then(() => sendStatus(io, socket.userId))
         .catch((err) => console.error(err));
     }
   });
