@@ -1,11 +1,11 @@
 const Postwall = require("../../models/Postwall");
-const User = require("../../models/User");
-const { errorResponse, reportError } = require("../../utils/errors");
+const { reportError } = require("../../utils/errors");
+const { requireUserByUsername } = require("../../utils/findUsers");
 
 const getPostwall = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    const user = await requireUserByUsername(req, res);
+    if (!user) return;
 
     const postwall = await Postwall.findOne({ user: user._id });
     res.json(postwall);
