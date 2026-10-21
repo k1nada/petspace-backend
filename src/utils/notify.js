@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const { SOCKET_EVENTS } = require("./socketEvents");
 
 let io;
 const setSocketIO = (ioInstance) => {
@@ -11,7 +12,7 @@ const notify = async ({ recipient, user, type }) => {
   const notification = await Notification.create({ recipient, user, type });
   await notification.populate("user", "name avatar");
 
-  io.to(recipient.toString()).emit("notification", {
+  io.to(recipient.toString()).emit(SOCKET_EVENTS.NOTIFICATION, {
     id: notification.id,
     type: notification.type,
     user: notification.user

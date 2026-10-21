@@ -21,7 +21,7 @@ const resolveActingUserPair = async (req, res, otherUsernameParam) => {
   return { user, other };
 };
 
-const requireSelfByUsername = async (req, res, populate) => {
+const requireUserByUsername = async (req, res, populate) => {
   let query = User.findOne({ username: req.params.username });
   if (populate) query = query.populate(populate);
   const user = await query;
@@ -30,6 +30,13 @@ const requireSelfByUsername = async (req, res, populate) => {
     res.status(404).json(errorResponse("USER_NOT_FOUND"));
     return null;
   }
+
+  return user;
+};
+
+const requireSelfByUsername = async (req, res, populate) => {
+  const user = await requireUserByUsername(req, res, populate);
+  if (!user) return null;
 
   if (req.user.id !== user._id.toString()) {
     res.status(403).json(errorResponse("ACCESS_DENIED"));
@@ -41,5 +48,6 @@ const requireSelfByUsername = async (req, res, populate) => {
 
 module.exports = {
   resolveActingUserPair,
+  requireUserByUsername,
   requireSelfByUsername,
 };

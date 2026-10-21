@@ -1,7 +1,7 @@
-const User = require("../../models/User");
 const FamilyMember = require("../../models/FamilyMember");
 const { errorResponse, reportError } = require("../../utils/errors");
 const { assertOwner } = require("../../utils/validation");
+const { requireUserByUsername } = require("../../utils/findUsers");
 
 const MAX_NAME_LENGTH = 50;
 const MAX_BREED_LENGTH = 50;
@@ -10,8 +10,8 @@ const MAX_AVATAR_URL_LENGTH = 500;
 
 const getFamily = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    const user = await requireUserByUsername(req, res);
+    if (!user) return;
 
     const members = await FamilyMember.find({ owner: user._id }).sort({
       createdAt: 1,

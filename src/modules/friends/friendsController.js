@@ -5,6 +5,7 @@ const { errorResponse, reportError } = require("../../utils/errors");
 const {
   resolveActingUserPair,
   requireSelfByUsername,
+  requireUserByUsername,
 } = require("../../utils/findUsers");
 const { notify } = require("../../utils/notify");
 const {
@@ -20,11 +21,11 @@ const SUGGESTED_FRIENDS_RESULT_COUNT = 5;
 
 const getFriends = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username }).populate(
-      "friends",
-      "username name avatar breed lastSeen",
-    );
-    if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
+    const user = await requireUserByUsername(req, res, {
+      path: "friends",
+      select: "username name avatar breed lastSeen",
+    });
+    if (!user) return;
     res.json(
       user.friends.map((friend) => ({
         ...friend.toJSON(),

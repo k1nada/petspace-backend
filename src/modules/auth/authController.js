@@ -14,6 +14,8 @@ const { isUserOnline } = require("../../utils/presence");
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const signup = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -35,11 +37,21 @@ const signup = async (req, res) => {
     });
 
     const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-      await user.save({ session });
-      await Postwall.create([{ user: user._id }], { session });
-    });
-    await session.endSession();
+    try {
+      await session.withTransaction(async () => {
+        await user.save({ session });
+        await Postwall.create([{ user: user._id }], { session });
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        if (err.keyPattern?.email)
+          return res.status(400).json(errorResponse("EMAIL_ALREADY_EXISTS"));
+        return res.status(400).json(errorResponse("USERNAME_ALREADY_EXISTS"));
+      }
+      throw err;
+    } finally {
+      await session.endSession();
+    }
 
     res.json({
       token: generateAccessToken(user._id),
@@ -171,7 +183,7 @@ const registrationsSteps = async (req, res) => {
       req.user.id,
       { bio, sex, birthDate, country, city, breed, registrationCompleted },
       { new: true, runValidators: true },
-    );
+    ).select({ password: 0, email: 0 });
     res.json(user);
   } catch (err) {
     reportError(err, res);
@@ -183,7 +195,7 @@ const updateUser = async (req, res) => {
     const { name, bio, sex, birthDate, country, city, breed, interests } =
       req.body;
 
-    if (name !== undefined && !name.trim())
+    if (name !== undefined && (typeof name !== "string" || !name.trim()))
       return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
 
     const update = { name, bio, sex, birthDate, country, city, breed };
@@ -198,7 +210,7 @@ const updateUser = async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, update, {
       new: true,
       runValidators: true,
-    });
+    }).select({ password: 0, email: 0 });
     res.json(user);
   } catch (err) {
     reportError(err, res);
@@ -210,10 +222,11 @@ const searchUsers = async (req, res) => {
     const { query } = req.query;
     if (!query?.trim()) return res.json([]);
 
+    const safeQuery = escapeRegex(query);
     const users = await User.find({
       $or: [
-        { name: { $regex: query, $options: "i" } },
-        { username: { $regex: query, $options: "i" } },
+        { name: { $regex: safeQuery, $options: "i" } },
+        { username: { $regex: safeQuery, $options: "i" } },
       ],
     })
       .select("name username avatar")

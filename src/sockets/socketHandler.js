@@ -15,16 +15,19 @@ const {
   removeConnection,
   getStatusWatcherIds,
 } = require("../utils/presence");
+const { SOCKET_EVENTS } = require("../utils/socketEvents");
 
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
 const MAX_TEMP_ID_LENGTH = 64;
+const MAX_MESSAGES_PER_SECOND = 5;
+const ONE_SECOND_MS = 1000;
 
 const sendStatus = async (io, userId) => {
   const watcherIds = await getStatusWatcherIds(userId);
   if (watcherIds.length === 0) return;
 
   const user = await User.findById(userId).select("lastSeen");
-  io.to(watcherIds).emit("statusChange", {
+  io.to(watcherIds).emit(SOCKET_EVENTS.STATUS_CHANGE, {
     userId,
     isOnline: isUserOnline(userId),
     lastSeen: user?.lastSeen ?? null,
@@ -46,9 +49,20 @@ const setupSockets = (io) => {
 
   io.on("connection", (socket) => {
     socket.join(socket.userId);
+    let recentSendTimes = [];
 
-    socket.on("message", async (payload, ack) => {
+    socket.on(SOCKET_EVENTS.MESSAGE, async (payload, ack) => {
       const reply = typeof ack === "function" ? ack : () => {};
+
+      const now = Date.now();
+      recentSendTimes = recentSendTimes.filter(
+        (time) => now - time < ONE_SECOND_MS,
+      );
+      if (recentSendTimes.length >= MAX_MESSAGES_PER_SECOND) {
+        return reply({ error: errorResponse("TOO_MANY_REQUESTS") });
+      }
+      recentSendTimes.push(now);
+
       try {
         const { roomId, text, postId, tempId } = payload ?? {};
         const messageText = typeof text === "string" ? text.trim() : "";
@@ -96,7 +110,7 @@ const setupSockets = (io) => {
           message.tempId = tempId;
         }
 
-        io.to(socket.userId).to(partnerId).emit("message", message);
+        io.to(socket.userId).to(partnerId).emit(SOCKET_EVENTS.MESSAGE, message);
         reply({ message });
       } catch (err) {
         console.error(err);
