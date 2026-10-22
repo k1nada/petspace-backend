@@ -7,6 +7,7 @@ const MAX_NAME_LENGTH = 50;
 const MAX_BREED_LENGTH = 50;
 const MAX_USERNAME_LENGTH = 30;
 const MAX_AVATAR_URL_LENGTH = 500;
+const MAX_PARENTS = 2;
 
 const getFamily = async (req, res) => {
   try {
@@ -53,6 +54,15 @@ const addFamilyMember = async (req, res) => {
       (typeof username !== "string" || username.length > MAX_USERNAME_LENGTH)
     )
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
+
+    if (relation === "parent") {
+      const parentCount = await FamilyMember.countDocuments({
+        owner: req.user.id,
+        relation: "parent",
+      });
+      if (parentCount >= MAX_PARENTS)
+        return res.status(400).json(errorResponse("PARENT_LIMIT_REACHED"));
+    }
 
     const member = await FamilyMember.create({
       owner: req.user.id,
