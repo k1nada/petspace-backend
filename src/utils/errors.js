@@ -30,6 +30,7 @@ const ERROR_CODES = {
 
   FAMILY_MEMBER_NOT_FOUND: 2000,
   INVALID_RELATION: 2001,
+  PARENT_LIMIT_REACHED: 2002,
 };
 
 const errorResponse = (errorName) => ({
