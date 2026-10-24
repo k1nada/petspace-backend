@@ -14,6 +14,9 @@ const { isUserOnline } = require("../../utils/presence");
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
 
+const MAX_SEARCH_RESULTS = 8;
+const MIN_SEARCH_LENGTH = 2;
+
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const signup = async (req, res) => {
@@ -220,9 +223,12 @@ const updateUser = async (req, res) => {
 const searchUsers = async (req, res) => {
   try {
     const { query } = req.query;
-    if (!query?.trim()) return res.json([]);
+    if (typeof query !== "string") return res.json([]);
 
-    const safeQuery = escapeRegex(query);
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < MIN_SEARCH_LENGTH) return res.json([]);
+
+    const safeQuery = escapeRegex(trimmedQuery);
     const users = await User.find({
       $or: [
         { name: { $regex: safeQuery, $options: "i" } },
@@ -230,7 +236,7 @@ const searchUsers = async (req, res) => {
       ],
     })
       .select("name username avatar")
-      .limit(10);
+      .limit(MAX_SEARCH_RESULTS);
 
     res.json(users);
   } catch (err) {
