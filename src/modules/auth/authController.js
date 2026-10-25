@@ -10,14 +10,13 @@ const { errorResponse, reportError } = require("../../utils/errors");
 const { withLiked } = require("../../utils/likes");
 const { withReposted } = require("../../utils/reposts");
 const { isUserOnline } = require("../../utils/presence");
+const { escapeRegex } = require("../../utils/validation");
 
 const generateAccessToken = (id) =>
   jwt.sign({ id }, secret, { expiresIn: "24h" });
 
 const MAX_SEARCH_RESULTS = 8;
 const MIN_SEARCH_LENGTH = 2;
-
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const signup = async (req, res) => {
   try {

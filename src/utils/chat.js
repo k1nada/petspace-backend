@@ -1,6 +1,8 @@
 const MAX_MESSAGE_LENGTH = 2000;
 const DEFAULT_PAGE_SIZE = 30;
 const MAX_PAGE_SIZE = 50;
+const MAX_MESSAGE_SEARCH_RESULTS = 20;
+const MIN_MESSAGE_SEARCH_LENGTH = 2;
 
 const ROOM_ID_PATTERN = /^[0-9a-f]{24}_[0-9a-f]{24}$/;
 
@@ -24,6 +26,8 @@ module.exports = {
   MAX_MESSAGE_LENGTH,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  MAX_MESSAGE_SEARCH_RESULTS,
+  MIN_MESSAGE_SEARCH_LENGTH,
   isValidRoomId,
   isRoomParticipant,
   getPartnerId,
