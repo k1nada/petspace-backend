@@ -4,9 +4,12 @@ const User = require("../../models/User");
 const { errorResponse, reportError } = require("../../utils/errors");
 const {
   DEFAULT_PAGE_SIZE,
+  MAX_MESSAGE_SEARCH_RESULTS,
+  MIN_MESSAGE_SEARCH_LENGTH,
   isRoomParticipant,
   getPartnerId,
 } = require("../../utils/chat");
+const { escapeRegex } = require("../../utils/validation");
 const { requireSelfByUsername } = require("../../utils/findUsers");
 const { isUserOnline } = require("../../utils/presence");
 
@@ -199,4 +202,66 @@ const markMessagesRead = async (req, res) => {
   }
 };
 
-module.exports = { getMessages, getConversations, markMessagesRead };
+const searchMessages = async (req, res) => {
+  try {
+    if (!validationResult(req).isEmpty()) {
+      return res.status(400).json(errorResponse("INVALID_REQUEST"));
+    }
+
+    const { q, limit = MAX_MESSAGE_SEARCH_RESULTS } = matchedData(req, {
+      locations: ["query"],
+    });
+    const query = q.trim();
+    if (query.length < MIN_MESSAGE_SEARCH_LENGTH) return res.json([]);
+
+    const userId = req.user.id;
+    const messages = await Message.find({
+      participants: userId,
+      text: { $regex: escapeRegex(query), $options: "i" },
+    })
+      .sort({ _id: -1 })
+      .limit(limit)
+      .select("roomId text createdAt");
+
+    const partnerIds = [
+      ...new Set(
+        messages.map((message) => getPartnerId(message.roomId, userId)),
+      ),
+    ];
+    const partners = await User.find({ _id: { $in: partnerIds } }).select(
+      "username name avatar",
+    );
+    const partnerById = new Map(
+      partners.map((partner) => [partner._id.toString(), partner]),
+    );
+
+    const results = [];
+    for (const message of messages) {
+      const partner = partnerById.get(getPartnerId(message.roomId, userId));
+      if (!partner) continue;
+      results.push({
+        id: message._id.toString(),
+        roomId: message.roomId,
+        text: message.text,
+        createdAt: message.createdAt,
+        partner: {
+          id: partner._id.toString(),
+          username: partner.username,
+          name: partner.name,
+          avatar: partner.avatar,
+        },
+      });
+    }
+
+    res.json(results);
+  } catch (err) {
+    reportError(err, res);
+  }
+};
+
+module.exports = {
+  getMessages,
+  getConversations,
+  markMessagesRead,
+  searchMessages,
+};

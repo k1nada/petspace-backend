@@ -8,6 +8,9 @@ const validateContentLength = (content, maxLength, res) => {
   return true;
 };
 
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const assertOwner = (ownerId, userId, res) => {
   if (ownerId.toString() !== userId) {
     res.status(403).json(errorResponse("ACCESS_DENIED"));
@@ -16,4 +19,4 @@ const assertOwner = (ownerId, userId, res) => {
   return true;
 };
 
-module.exports = { validateContentLength, assertOwner };
+module.exports = { validateContentLength, assertOwner, escapeRegex };
