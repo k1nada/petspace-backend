@@ -8,8 +8,7 @@ const validateContentLength = (content, maxLength, res) => {
   return true;
 };
 
-const escapeRegex = (value) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const assertOwner = (ownerId, userId, res) => {
   if (ownerId.toString() !== userId) {
