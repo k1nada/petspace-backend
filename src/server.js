@@ -21,7 +21,7 @@ const chatRouter = require("./modules/chat/chatRouter");
 const notificationRouter = require("./modules/notifications/notificationRouter");
 const setupSockets = require("./sockets/socketHandler");
 const { setSocketIO } = require("./utils/notify");
-const { reportError } = require("./utils/errors");
+const { errorResponse, reportError } = require("./utils/errors");
 const User = require("./models/User");
 
 const app = express();
@@ -53,6 +53,10 @@ app.use("/chat", chatRouter);
 app.use(notificationRouter);
 
 setupSockets(io);
+
+app.use((req, res) => {
+  res.status(404).json(errorResponse("NOT_FOUND"));
+});
 
 app.use((err, req, res, _next) => {
   reportError(err, res);
