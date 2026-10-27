@@ -43,12 +43,10 @@ const uploadAvatar = async (req, res) => {
     $push: { avatarPhotos: photo._id, photos: photo._id },
   });
 
-  res.json({
-    data: {
-      url: optimizedUrl,
-      public_id: result.public_id,
-      photoId: photo._id,
-    },
+  res.status(201).json({
+    id: photo.id,
+    publicId: result.public_id,
+    url: optimizedUrl,
   });
 };
 
@@ -67,13 +65,11 @@ const uploadPhoto = async (req, res) => {
 
   await User.findByIdAndUpdate(req.user.id, { $push: { photos: photo._id } });
 
-  res.json({
-    data: {
-      url: result.secure_url,
-      public_id: result.public_id,
-      _id: photo._id,
-      createdAt: photo.createdAt,
-    },
+  res.status(201).json({
+    id: photo.id,
+    publicId: result.public_id,
+    url: result.secure_url,
+    createdAt: photo.createdAt,
   });
 };
 
@@ -125,9 +121,7 @@ const deletePhoto = async (req, res) => {
 
   await cloudinary.uploader.destroy(photo.publicId);
 
-  res.json({
-    data: { avatarChanged: isCurrentAvatar, avatar: newAvatarUrl ?? null },
-  });
+  res.json({ avatarChanged: isCurrentAvatar, avatar: newAvatarUrl ?? null });
 };
 
 const deleteAvatar = async (req, res) => {
@@ -148,7 +142,7 @@ const deleteAvatar = async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, { avatar: null });
   }
 
-  res.json({ data: { success: true } });
+  res.json({ message: "Avatar deleted" });
 };
 
 const uploadFamilyAvatar = async (req, res) => {
@@ -156,7 +150,7 @@ const uploadFamilyAvatar = async (req, res) => {
 
   const result = await uploadToCloudinary(req.file.buffer, "my-app/family");
 
-  res.json({ data: { url: buildAvatarUrl(result.public_id) } });
+  res.status(201).json({ url: buildAvatarUrl(result.public_id) });
 };
 
 module.exports = {
