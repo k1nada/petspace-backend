@@ -16,6 +16,11 @@ const Message = new Schema(
       ref: "Post",
       default: null,
     },
+    photo: {
+      type: Schema.Types.ObjectId,
+      ref: "Photo",
+      default: null,
+    },
     read: { type: Boolean, default: false },
   },
   {

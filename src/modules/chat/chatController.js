@@ -12,6 +12,7 @@ const {
 const { escapeRegex } = require("../../utils/validation");
 const { requireSelfByUsername } = require("../../utils/findUsers");
 const { isUserOnline } = require("../../utils/presence");
+const { MESSAGE_POPULATE, serializeMessage } = require("../../utils/messages");
 
 const toContact = (user) => ({
   id: user._id.toString(),
@@ -58,15 +59,12 @@ const getMessages = async (req, res) => {
   const found = await Message.find(filter)
     .sort({ _id: sortOrder })
     .limit(limit + 1)
-    .populate("sender", "username name avatar")
-    .populate({
-      path: "post",
-      select: "content image user createdAt",
-      populate: { path: "user", select: "name avatar username" },
-    });
+    .populate(MESSAGE_POPULATE);
 
   const hasMore = found.length > limit;
-  const messages = found.slice(0, limit);
+  const messages = found
+    .slice(0, limit)
+    .map((message) => serializeMessage(message, userId));
   if (!after) messages.reverse();
 
   res.json({ messages, hasMore });
@@ -91,6 +89,7 @@ const getConversations = async (req, res) => {
         lastMessageText: { $first: "$text" },
         lastMessageCreatedAt: { $first: "$createdAt" },
         lastMessagePost: { $first: "$post" },
+        lastMessagePhoto: { $first: "$photo" },
         unreadCount: {
           $sum: {
             $cond: [
@@ -118,6 +117,7 @@ const getConversations = async (req, res) => {
       text: room.lastMessageText,
       createdAt: room.lastMessageCreatedAt,
       post: room.lastMessagePost,
+      photo: room.lastMessagePhoto,
     });
     if (room.unreadCount > 0) {
       unreadCountByPartnerId.set(partnerId, room.unreadCount);
@@ -152,6 +152,7 @@ const getConversations = async (req, res) => {
         text: lastMessage.text,
         createdAt: lastMessage.createdAt,
         hasPost: !!lastMessage.post,
+        hasPhoto: !!lastMessage.photo,
       };
     }
     return result;

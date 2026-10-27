@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const { secret } = require("../config/config");
 const Message = require("../models/Message");
 const Post = require("../models/Post");
+const Photo = require("../models/Photo");
 const User = require("../models/User");
 const { errorResponse } = require("../utils/errors");
 const {
@@ -16,6 +17,7 @@ const {
   getStatusWatcherIds,
 } = require("../utils/presence");
 const { SOCKET_EVENTS } = require("../utils/socketEvents");
+const { MESSAGE_POPULATE, serializeMessage } = require("../utils/messages");
 
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
 const MAX_TEMP_ID_LENGTH = 64;
@@ -64,17 +66,24 @@ const setupSockets = (io) => {
       recentSendTimes.push(now);
 
       try {
-        const { roomId, text, postId, tempId } = payload ?? {};
+        const { roomId, text, postId, photoId, tempId } = payload ?? {};
         const messageText = typeof text === "string" ? text.trim() : "";
         const hasPost = typeof postId === "string" && postId !== "";
+        const hasPhoto = typeof photoId === "string" && photoId !== "";
 
-        if (!messageText && !hasPost) {
+        if (!messageText && !hasPost && !hasPhoto) {
+          return reply({ error: errorResponse("INVALID_REQUEST") });
+        }
+        if (hasPost && hasPhoto) {
           return reply({ error: errorResponse("INVALID_REQUEST") });
         }
         if (messageText.length > MAX_MESSAGE_LENGTH) {
           return reply({ error: errorResponse("INVALID_REQUEST") });
         }
         if (hasPost && !OBJECT_ID_PATTERN.test(postId)) {
+          return reply({ error: errorResponse("INVALID_REQUEST") });
+        }
+        if (hasPhoto && !OBJECT_ID_PATTERN.test(photoId)) {
           return reply({ error: errorResponse("INVALID_REQUEST") });
         }
         if (!isRoomParticipant(roomId, socket.userId)) {
@@ -88,6 +97,9 @@ const setupSockets = (io) => {
         if (hasPost && !(await Post.exists({ _id: postId }))) {
           return reply({ error: errorResponse("POST_NOT_FOUND") });
         }
+        if (hasPhoto && !(await Photo.exists({ _id: photoId }))) {
+          return reply({ error: errorResponse("PHOTO_NOT_FOUND") });
+        }
 
         const created = await Message.create({
           roomId,
@@ -95,23 +107,20 @@ const setupSockets = (io) => {
           sender: socket.userId,
           text: messageText,
           post: hasPost ? postId : null,
+          photo: hasPhoto ? photoId : null,
         });
-        await created.populate([
-          { path: "sender", select: "username name avatar" },
-          {
-            path: "post",
-            select: "content image user createdAt",
-            populate: { path: "user", select: "name avatar username" },
-          },
-        ]);
+        await created.populate(MESSAGE_POPULATE);
 
-        const message = created.toJSON();
+        const senderMessage = serializeMessage(created, socket.userId);
+        const partnerMessage = serializeMessage(created, partnerId);
         if (typeof tempId === "string" && tempId.length <= MAX_TEMP_ID_LENGTH) {
-          message.tempId = tempId;
+          senderMessage.tempId = tempId;
+          partnerMessage.tempId = tempId;
         }
 
-        io.to(socket.userId).to(partnerId).emit(SOCKET_EVENTS.MESSAGE, message);
-        reply({ message });
+        io.to(socket.userId).emit(SOCKET_EVENTS.MESSAGE, senderMessage);
+        io.to(partnerId).emit(SOCKET_EVENTS.MESSAGE, partnerMessage);
+        reply({ message: senderMessage });
       } catch (err) {
         console.error(err);
         reply({ error: errorResponse("INTERNAL_SERVER_ERROR") });

@@ -86,6 +86,7 @@ const serializeReposts = async (reposts, userId) => {
     repostedPosts[i].repostedBy = {
       name: validReposts[i].user.name,
       username: validReposts[i].user.username,
+      avatar: validReposts[i].user.avatar,
     };
     repostedPosts[i].repostedAt = validReposts[i].createdAt;
   }
@@ -125,7 +126,7 @@ const getPosts = async (req, res) => {
         },
       ],
     })
-    .populate("user", "name username")
+    .populate("user", "name username avatar")
     .sort({ createdAt: -1 });
 
   const ownPosts = await serializePosts(posts, req.user.id);
@@ -168,7 +169,7 @@ const getFeed = async (req, res) => {
         },
       ],
     })
-    .populate("user", "name username")
+    .populate("user", "name username avatar")
     .sort({ createdAt: -1 })
     .limit(50);
 
