@@ -15,4 +15,10 @@ const uploadToCloudinary = (buffer, folder) =>
       .end(buffer),
   );
 
-module.exports = { cloudinary, uploadToCloudinary };
+const isOwnCloudinaryUrl = (url) =>
+  typeof url === "string" &&
+  url.startsWith(
+    `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`,
+  );
+
+module.exports = { cloudinary, uploadToCloudinary, isOwnCloudinaryUrl };

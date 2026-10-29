@@ -43,7 +43,7 @@ const followUser = async (req, res) => {
   const { user, other: target } = pair;
 
   if (user.following.some((id) => id.equals(target._id)))
-    return res.status(400).json(errorResponse("ALREADY_FOLLOWING"));
+    return res.status(409).json(errorResponse("ALREADY_FOLLOWING"));
 
   const session = await mongoose.startSession();
   try {

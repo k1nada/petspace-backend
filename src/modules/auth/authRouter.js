@@ -28,7 +28,11 @@ router.post(
   "/signup",
   authAttemptsLimiter,
   [
-    check("username", "The username can't be empty").notEmpty(),
+    check("username", "Invalid username")
+      .trim()
+      .toLowerCase()
+      .matches(/^[a-z0-9_]{3,20}$/),
+    check("name", "Invalid name").trim().isLength({ min: 3, max: 20 }),
     check("email", "Invalid email").isEmail(),
     check(
       "password",

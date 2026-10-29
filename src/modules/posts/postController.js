@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
+const { validationResult } = require("express-validator");
 const User = require("../../models/User");
 const Post = require("../../models/Post");
+const Comment = require("../../models/Comment");
 const Postwall = require("../../models/Postwall");
 const Repost = require("../../models/Repost");
 const { errorResponse } = require("../../utils/errors");
@@ -8,14 +10,9 @@ const { awardFirstPostAchievement } = require("../../utils/achievements");
 const { withLiked } = require("../../utils/likes");
 const { requireSelfByUsername } = require("../../utils/findUsers");
 const { validateContentLength } = require("../../utils/validation");
+const { isOwnCloudinaryUrl } = require("../../utils/cloudinary");
 
 const MAX_POST_CONTENT_LENGTH = 3000;
-
-const isOwnCloudinaryUrl = (url) =>
-  typeof url === "string" &&
-  url.startsWith(
-    `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`,
-  );
 
 const serializePosts = async (posts, userId) => {
   const postIds = posts.map((post) => post._id);
@@ -41,6 +38,8 @@ const createPost = async (req, res) => {
   const { content, postwallId, image } = req.body;
   if ((!content && !image) || !postwallId)
     return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
+  if (!validationResult(req).isEmpty())
+    return res.status(400).json(errorResponse("INVALID_REQUEST"));
   if (content && !validateContentLength(content, MAX_POST_CONTENT_LENGTH, res))
     return;
   if (image && !isOwnCloudinaryUrl(image))
@@ -206,6 +205,7 @@ const deletePost = async (req, res) => {
     await session.withTransaction(async () => {
       await Post.deleteOne({ _id: post._id }).session(session);
       await Repost.deleteMany({ post: post._id }).session(session);
+      await Comment.deleteMany({ post: post._id }).session(session);
     });
   } finally {
     await session.endSession();
