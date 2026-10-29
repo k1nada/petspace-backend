@@ -1,3 +1,4 @@
+const { validationResult } = require("express-validator");
 const Comment = require("../../models/Comment");
 const Post = require("../../models/Post");
 const Photo = require("../../models/Photo");
@@ -15,6 +16,8 @@ const createComment = async (req, res) => {
   const { content, postId, photoId, replyCommentId } = req.body;
   if (!content || (!postId && !photoId))
     return res.status(400).json(errorResponse("MISSING_REQUIRED_FIELDS"));
+  if (!validationResult(req).isEmpty())
+    return res.status(400).json(errorResponse("INVALID_REQUEST"));
   if (!validateContentLength(content, MAX_COMMENT_CONTENT_LENGTH, res)) return;
 
   let replyTo = null;
@@ -30,6 +33,11 @@ const createComment = async (req, res) => {
       return res.status(400).json(errorResponse("INVALID_REQUEST"));
   }
 
+  const target = await (postId ? Post : Photo)
+    .findById(postId || photoId)
+    .select("user");
+  if (!target) return res.status(404).json(errorResponse("NOT_FOUND"));
+
   const comment = await Comment.create({
     content,
     user: req.user.id,
@@ -39,24 +47,11 @@ const createComment = async (req, res) => {
 
   await comment.populate("user", "name avatar username");
 
-  if (replyTo) {
-    await notify({
-      recipient: replyTo.user,
-      user: req.user.id,
-      type: "comment",
-    });
-  } else {
-    const target = await (postId ? Post : Photo)
-      .findById(postId || photoId)
-      .select("user");
-    if (target) {
-      await notify({
-        recipient: target.user,
-        user: req.user.id,
-        type: "comment",
-      });
-    }
-  }
+  await notify({
+    recipient: replyTo ? replyTo.user : target.user,
+    user: req.user.id,
+    type: "comment",
+  });
 
   res.status(201).json(comment);
 };

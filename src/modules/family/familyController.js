@@ -2,6 +2,7 @@ const FamilyMember = require("../../models/FamilyMember");
 const { errorResponse } = require("../../utils/errors");
 const { assertOwner } = require("../../utils/validation");
 const { requireUserByUsername } = require("../../utils/findUsers");
+const { isOwnCloudinaryUrl } = require("../../utils/cloudinary");
 
 const MAX_NAME_LENGTH = 50;
 const MAX_BREED_LENGTH = 50;
@@ -35,12 +36,14 @@ const addFamilyMember = async (req, res) => {
 
   if (
     avatar !== undefined &&
-    (typeof avatar !== "string" || avatar.length > MAX_AVATAR_URL_LENGTH)
+    avatar !== null &&
+    (!isOwnCloudinaryUrl(avatar) || avatar.length > MAX_AVATAR_URL_LENGTH)
   )
     return res.status(400).json(errorResponse("INVALID_REQUEST"));
 
   if (
     breed !== undefined &&
+    breed !== null &&
     (typeof breed !== "string" || breed.length > MAX_BREED_LENGTH)
   )
     return res.status(400).json(errorResponse("INVALID_REQUEST"));

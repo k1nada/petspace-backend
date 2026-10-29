@@ -25,14 +25,14 @@ const signup = async (req, res) => {
   const { name, username, password } = req.body;
   const email = req.body.email.trim().toLowerCase();
   if (await User.findOne({ email }))
-    return res.status(400).json(errorResponse("EMAIL_ALREADY_EXISTS"));
+    return res.status(409).json(errorResponse("EMAIL_ALREADY_EXISTS"));
   if (await User.findOne({ username }))
-    return res.status(400).json(errorResponse("USERNAME_ALREADY_EXISTS"));
+    return res.status(409).json(errorResponse("USERNAME_ALREADY_EXISTS"));
 
   const user = new User({
     name,
     username,
-    password: bcrypt.hashSync(password, 10),
+    password: await bcrypt.hash(password, 10),
     email,
   });
 
@@ -45,15 +45,15 @@ const signup = async (req, res) => {
   } catch (err) {
     if (err.code === 11000) {
       if (err.keyPattern?.email)
-        return res.status(400).json(errorResponse("EMAIL_ALREADY_EXISTS"));
-      return res.status(400).json(errorResponse("USERNAME_ALREADY_EXISTS"));
+        return res.status(409).json(errorResponse("EMAIL_ALREADY_EXISTS"));
+      return res.status(409).json(errorResponse("USERNAME_ALREADY_EXISTS"));
     }
     throw err;
   } finally {
     await session.endSession();
   }
 
-  res.json({
+  res.status(201).json({
     token: generateAccessToken(user._id),
     user: {
       id: user.id,
@@ -70,7 +70,7 @@ const signin = async (req, res) => {
   const { password } = req.body;
   const email = req.body.email.trim().toLowerCase();
   const user = await User.findOne({ email });
-  if (!user || !bcrypt.compareSync(password, user.password))
+  if (!user || !(await bcrypt.compare(password, user.password)))
     return res.status(401).json(errorResponse("INVALID_CREDENTIALS"));
 
   res.json({

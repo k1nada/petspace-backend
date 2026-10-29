@@ -83,7 +83,7 @@ const addFriend = async (req, res) => {
   const { user, other: friend } = pair;
 
   if (containsId(user.friends, friend._id))
-    return res.status(400).json(errorResponse("ALREADY_FRIENDS"));
+    return res.status(409).json(errorResponse("ALREADY_FRIENDS"));
 
   const reverseRequest = await FriendRequest.findOne({
     from: friend._id,
@@ -116,7 +116,7 @@ const addFriend = async (req, res) => {
   });
 
   if (existingRequest) {
-    return res.status(400).json(errorResponse("REQUEST_ALREADY_SENT"));
+    return res.status(409).json(errorResponse("REQUEST_ALREADY_SENT"));
   }
 
   const friendRequest = new FriendRequest({
@@ -141,7 +141,7 @@ const addFriend = async (req, res) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json(errorResponse("REQUEST_ALREADY_SENT"));
+      return res.status(409).json(errorResponse("REQUEST_ALREADY_SENT"));
     }
     throw err;
   } finally {
@@ -189,7 +189,7 @@ const acceptFriendRequest = async (res, friendRequest) => {
     return res.status(404).json(errorResponse("USER_NOT_FOUND"));
 
   if (containsId(user.friends, friend._id))
-    return res.status(400).json(errorResponse("ALREADY_FRIENDS"));
+    return res.status(409).json(errorResponse("ALREADY_FRIENDS"));
 
   friendRequest.status = "accepted";
 
