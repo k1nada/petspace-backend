@@ -13,6 +13,7 @@ const { escapeRegex } = require("../../utils/validation");
 const { requireSelfByUsername } = require("../../utils/findUsers");
 const { isUserOnline } = require("../../utils/presence");
 const { MESSAGE_POPULATE, serializeMessage } = require("../../utils/messages");
+const { findPhotoReposts } = require("../../utils/reposts");
 
 const toContact = (user) => ({
   id: user._id.toString(),
@@ -62,9 +63,14 @@ const getMessages = async (req, res) => {
     .populate(MESSAGE_POPULATE);
 
   const hasMore = found.length > limit;
-  const messages = found
-    .slice(0, limit)
-    .map((message) => serializeMessage(message, userId));
+  const pageMessages = found.slice(0, limit);
+  const photoIds = pageMessages
+    .filter((message) => message.photo)
+    .map((message) => message.photo._id);
+  const photoReposts = await findPhotoReposts(photoIds);
+  const messages = pageMessages.map((message) =>
+    serializeMessage(message, userId, photoReposts),
+  );
   if (!after) messages.reverse();
 
   res.json({ messages, hasMore });

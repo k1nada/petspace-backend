@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
 const { secret } = require("../../config/config");
 const { errorResponse } = require("../../utils/errors");
 const { withLiked } = require("../../utils/likes");
-const { withReposted } = require("../../utils/reposts");
+const { getRepostInfo, findPhotoReposts } = require("../../utils/reposts");
 const { isUserOnline } = require("../../utils/presence");
 const { escapeRegex } = require("../../utils/validation");
 
@@ -106,18 +106,24 @@ const getUser = async (req, res) => {
   if (!user) return res.status(404).json(errorResponse("USER_NOT_FOUND"));
 
   const userId = req.user?.id;
-  const obj = user.toObject({ virtuals: true });
+  const userData = user.toObject({ virtuals: true });
+  const photoReposts = await findPhotoReposts(
+    userData.photos.map((photo) => photo._id),
+  );
   res.json({
-    ...obj,
+    ...userData,
     isOnline: isUserOnline(user._id),
-    friends: obj.friends.map((friend) => ({
+    friends: userData.friends.map((friend) => ({
       ...friend,
       isOnline: isUserOnline(friend._id),
     })),
-    photos: obj.photos.map((photo) =>
-      withReposted(withLiked(photo, userId), userId),
+    photos: userData.photos.map((photo) => ({
+      ...withLiked(photo, userId),
+      ...getRepostInfo(photo._id, photoReposts, userId),
+    })),
+    avatarPhotos: userData.avatarPhotos.map((photo) =>
+      withLiked(photo, userId),
     ),
-    avatarPhotos: obj.avatarPhotos.map((photo) => withLiked(photo, userId)),
   });
 };
 

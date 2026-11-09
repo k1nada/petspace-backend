@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { cloudinary, uploadToCloudinary } = require("../../utils/cloudinary");
 const User = require("../../models/User");
 const Photo = require("../../models/Photo");
+const Repost = require("../../models/Repost");
 const { errorResponse } = require("../../utils/errors");
 
 const MAX_PHOTOS_PER_USER = 300;
@@ -86,6 +87,7 @@ const deletePhoto = async (req, res) => {
         user: req.user.id,
       }).session(session);
       if (!photo) return;
+      await Repost.deleteMany({ photo: photo._id }).session(session);
 
       const user = await User.findById(req.user.id).session(session);
       const lastAvatarPhotoId = user.avatarPhotos.at(-1);

@@ -18,6 +18,7 @@ const {
 } = require("../utils/presence");
 const { SOCKET_EVENTS } = require("../utils/socketEvents");
 const { MESSAGE_POPULATE, serializeMessage } = require("../utils/messages");
+const { findPhotoReposts } = require("../utils/reposts");
 
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/;
 const MAX_TEMP_ID_LENGTH = 64;
@@ -111,8 +112,19 @@ const setupSockets = (io) => {
         });
         await created.populate(MESSAGE_POPULATE);
 
-        const senderMessage = serializeMessage(created, socket.userId);
-        const partnerMessage = serializeMessage(created, partnerId);
+        const photoReposts = created.photo
+          ? await findPhotoReposts([created.photo._id])
+          : [];
+        const senderMessage = serializeMessage(
+          created,
+          socket.userId,
+          photoReposts,
+        );
+        const partnerMessage = serializeMessage(
+          created,
+          partnerId,
+          photoReposts,
+        );
         if (typeof tempId === "string" && tempId.length <= MAX_TEMP_ID_LENGTH) {
           senderMessage.tempId = tempId;
           partnerMessage.tempId = tempId;

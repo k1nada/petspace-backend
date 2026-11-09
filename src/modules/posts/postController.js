@@ -8,11 +8,18 @@ const Repost = require("../../models/Repost");
 const { errorResponse } = require("../../utils/errors");
 const { awardFirstPostAchievement } = require("../../utils/achievements");
 const { withLiked } = require("../../utils/likes");
+const { getRepostInfo, findPhotoReposts } = require("../../utils/reposts");
 const { requireSelfByUsername } = require("../../utils/findUsers");
 const { validateContentLength } = require("../../utils/validation");
 const { isOwnCloudinaryUrl } = require("../../utils/cloudinary");
 
 const MAX_POST_CONTENT_LENGTH = 3000;
+
+const REPOST_PHOTO_POPULATE = {
+  path: "photo",
+  select: "publicId user likes createdAt",
+  populate: { path: "user", select: "name avatar username" },
+};
 
 const serializePosts = async (posts, userId) => {
   const postIds = posts.map((post) => post._id);
@@ -21,13 +28,13 @@ const serializePosts = async (posts, userId) => {
   );
 
   return posts.map((post) => {
-    const obj = post.toObject();
+    const postData = post.toObject();
     const postReposts = reposts.filter(
-      (repost) => repost.post.toString() === obj._id.toString(),
+      (repost) => repost.post.toString() === postData._id.toString(),
     );
     return {
-      ...withLiked(obj, userId),
-      comments: obj.comments.map((c) => withLiked(c, userId)),
+      ...withLiked(postData, userId),
+      comments: postData.comments.map((c) => withLiked(c, userId)),
       reposts: postReposts.length,
       reposted: postReposts.some((repost) => repost.user.toString() === userId),
     };
@@ -93,6 +100,47 @@ const serializeReposts = async (reposts, userId) => {
   return repostedPosts;
 };
 
+const serializePhotoReposts = async (reposts, userId) => {
+  const validReposts = reposts.filter(
+    (repost) =>
+      repost.photo &&
+      repost.photo.user._id.toString() !== repost.user._id.toString(),
+  );
+  const photoReposts = await findPhotoReposts(
+    validReposts.map((repost) => repost.photo._id),
+  );
+
+  return validReposts.map((repost) => {
+    const photo = {
+      ...withLiked(repost.photo.toObject(), userId),
+      ...getRepostInfo(repost.photo._id, photoReposts, userId),
+    };
+
+    return {
+      id: photo.id,
+      content: "",
+      user: photo.user,
+      createdAt: photo.createdAt,
+      photo: {
+        id: photo.id,
+        publicId: photo.publicId,
+        createdAt: photo.createdAt,
+        user: photo.user,
+        liked: photo.liked,
+        likesCount: photo.likesCount,
+        reposted: photo.reposted,
+        repostsCount: photo.repostsCount,
+      },
+      repostedBy: {
+        name: repost.user.name,
+        username: repost.user.username,
+        avatar: repost.user.avatar,
+      },
+      repostedAt: repost.createdAt,
+    };
+  });
+};
+
 const sortByWallDate = (posts) => {
   posts.sort(
     (a, b) =>
@@ -125,13 +173,15 @@ const getPosts = async (req, res) => {
         },
       ],
     })
+    .populate(REPOST_PHOTO_POPULATE)
     .populate("user", "name username avatar")
     .sort({ createdAt: -1 });
 
   const ownPosts = await serializePosts(posts, req.user.id);
   const repostedPosts = await serializeReposts(reposts, req.user.id);
+  const repostedPhotos = await serializePhotoReposts(reposts, req.user.id);
 
-  res.json(sortByWallDate([...ownPosts, ...repostedPosts]));
+  res.json(sortByWallDate([...ownPosts, ...repostedPosts, ...repostedPhotos]));
 };
 
 const getFeed = async (req, res) => {
@@ -168,14 +218,18 @@ const getFeed = async (req, res) => {
         },
       ],
     })
+    .populate(REPOST_PHOTO_POPULATE)
     .populate("user", "name username avatar")
     .sort({ createdAt: -1 })
     .limit(50);
 
   const friendsPosts = await serializePosts(posts, req.user.id);
   const repostedPosts = await serializeReposts(reposts, req.user.id);
+  const repostedPhotos = await serializePhotoReposts(reposts, req.user.id);
 
-  res.json(sortByWallDate([...friendsPosts, ...repostedPosts]));
+  res.json(
+    sortByWallDate([...friendsPosts, ...repostedPosts, ...repostedPhotos]),
+  );
 };
 
 const updatePost = async (req, res) => {
