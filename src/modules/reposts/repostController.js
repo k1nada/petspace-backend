@@ -22,23 +22,21 @@ const toggleRepost = async (req, res) => {
 };
 
 const toggleRepostPhoto = async (req, res) => {
-  const photo = await Photo.findById(req.params.id).select("reposts");
+  const photo = await Photo.findById(req.params.id).select("_id");
   if (!photo) return res.status(404).json(errorResponse("NOT_FOUND"));
 
-  const added = await Photo.findOneAndUpdate(
-    { _id: photo.id, reposts: { $ne: req.user.id } },
-    { $addToSet: { reposts: req.user.id } },
-    { new: true },
-  );
-  if (added) return res.json({ reposted: true, count: added.reposts.length });
+  let reposted;
+  try {
+    await Repost.create({ photo: photo._id, user: req.user.id });
+    reposted = true;
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    await Repost.deleteOne({ photo: photo._id, user: req.user.id });
+    reposted = false;
+  }
 
-  const removed = await Photo.findOneAndUpdate(
-    { _id: photo.id, reposts: req.user.id },
-    { $pull: { reposts: req.user.id } },
-    { new: true },
-  );
-  if (!removed) return res.status(404).json(errorResponse("NOT_FOUND"));
-  res.json({ reposted: false, count: removed.reposts.length });
+  const count = await Repost.countDocuments({ photo: photo._id });
+  res.json({ reposted, count });
 };
 
 module.exports = { toggleRepost, toggleRepostPhoto };

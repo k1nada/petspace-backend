@@ -1,5 +1,5 @@
 const { withLiked } = require("./likes");
-const { withReposted } = require("./reposts");
+const { getRepostInfo } = require("./reposts");
 
 const MESSAGE_POPULATE = [
   { path: "sender", select: "username name avatar" },
@@ -10,16 +10,19 @@ const MESSAGE_POPULATE = [
   },
   {
     path: "photo",
-    select: "publicId user createdAt likes reposts",
+    select: "publicId user createdAt likes",
     populate: { path: "user", select: "name avatar username" },
   },
 ];
 
-const serializeMessage = (message, userId) => {
+const serializeMessage = (message, userId, photoReposts = []) => {
   const json = message.toJSON();
   if (!json.photo) return json;
 
-  const photo = withReposted(withLiked(json.photo, userId), userId);
+  const photo = {
+    ...withLiked(json.photo, userId),
+    ...getRepostInfo(json.photo._id, photoReposts, userId),
+  };
   return {
     ...json,
     photo: {
